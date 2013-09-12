@@ -1,0 +1,5 @@
+      integer nsmax, neqmax
+      parameter (nsmax=53,neqmax=nsmax+1)
+      integer slen
+      parameter (slen=18)
+

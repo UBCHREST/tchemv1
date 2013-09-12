@@ -1,0 +1,17 @@
+NiterMax   1000000
+oFreq      10
+deltat     1.e-10
+deltatMax  1.e-3
+tEnd       2.0 
+Tini       1000.0
+Temp_id    1600.0
+deltaTemp  0.1
+mech       chem.inp
+thermo     therm.dat
+withTab    0
+getIgnDel  0
+spec       CH4   0.0948178320887
+spec       O2    0.189635664177
+spec       N2    0.706766236705
+spec       AR    0.00878026702874
+END

@@ -1,0 +1,54 @@
+Changes in TChem-v0.2
+  - fixed bug that affected the computation of equilibrium constant at pressures other than 1atm.
+    This bug affected the computation of reverse reaction rates in reversible chemical reactions
+  - enhanced the kinetic model parser to handle non-conventional number representations,
+    e.g. 1.234+5 instead of 1.234e+5. It can also handle situations like '1.234 5' (instead of 1.234e5)
+    when the length of the number string is known, e.g. for the NASA polynomial coefficients
+  - improved the computation of Jacobian matrix elements for reactions involving
+    third-body concentrations that are identically zero
+  - improved the computation of the Jacobian matrix elements for reactions involving very small or 
+    very large Troe coefficients. In these cases the contribution of those terms to the reaction
+    rate is effectively null, but those very small or large Troe coefficients created arithmetic 
+    errors in the derivatives computed with TChem-v0.1.
+
+1. To configure the library:
+
+   ./configure --with-examples=yes --with-sundials-dir=<path-to-cvode-lib> --with-dvode-dir=<path-to-dvode-lib> --with-doxy
+
+
+  --with-examples     - example codes will be compiled (default no)
+                        This option requires the user to provide paths
+                        to local CVODE and DVODE libraries. The source
+                        code for these libraries can be downloaded
+                        from: https://computation.llnl.gov/casc/software.html
+                                
+  --with-doxy         - doxygen documentation will be created  (default no)
+
+2. To make the library type 'make'
+
+3. To run the examples (if the example codes were compiled)
+
+    - download kinetic model files and thermodynamic data
+
+        (a) for METHANE download grimech30.dat and thermo30.dat from:
+	      http://www.me.berkeley.edu/gri_mech/version30/files30; 
+              save these files as chem_gri3.inp and them_gri3.dat,
+	      respectively, under the 'data' directory 
+
+        (b) for ISO-OCTANE download ic8_ver3_mech.txt and prf_v3_therm_dat.txt from:
+            https://www-pls.llnl.gov/data/docs/science_and_technology/chemistry/combustion/ic8_ver3_mech.txt
+            https://www-pls.llnl.gov/data/docs/science_and_technology/chemistry/combustion/prf_v3_therm_dat.txt
+            save these files as chem_isoOct.inp and therm_isoOct.dat,
+            respectively, under the 'data' directory 
+
+        (c) for Primary Reference Fuels (PRF) mixtures download
+              prf_2d_mech.txt and prf_2d_therm.txt  from:
+              https://www-pls.llnl.gov/data/docs/science_and_technology/chemistry/combustion/prf_2d_mech.txt
+              https://www-pls.llnl.gov/data/docs/science_and_technology/chemistry/combustion/prf_2d_therm.txt     
+              save these files as chem_prf.inp and therm_prf.dat,
+             respectively, under the 'data' directory 
+      
+   - execute script files linksNrun*.x that are located in ign-*/run/* for the C, C++, and Fortran examples.
+     Note that simulations involving the iso-Octane can take from 15min to several hours to complete.
+
+

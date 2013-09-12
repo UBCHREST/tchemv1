@@ -1,0 +1,47 @@
+# do NOT modify this file by hand; it is made
+# by configure from MakeIncl.Vars.in; this file
+# is included into other makefiles; any changes here
+# will affect globally.
+# 
+
+#-example of things set by configure
+# CC       = gcc
+# CPP      = g++
+# F77      = gfortran
+
+#-things set by configure
+CC       = @cc_compiler@
+CPP      = @cpp_compiler@
+F77      = @fort_compiler@
+
+# CVODE & DVODE for examples
+
+# (examples below)
+# CVODE_INSTALL = /Users/csafta/sundials-install
+# DVODE_INSTALL = /Users/csafta/tchem/example/ign-f/lib
+
+CVODE_INSTALL = @sundials_install_dir@
+DVODE_INSTALL = @dvode_install_dir@
+
+EXAMPLEDIR = @example_dir@
+
+# Doxygen
+# (example below)
+# DOXY = doxygen
+
+DOXY = @doxygen@
+DOCDIR = @documentation_dir@
+
+# Operating system
+OS_NAME = @os_name@
+
+#--------------------------------------------------------------------
+
+#-things that can be changed for global effect
+CFLAGS   = -O2 -Wall
+CPPFLAGS = -O2 -Wall
+FFLAGS   = -O2
+
+# -ansi -pedantic -Wall 
+
+DFLAGS =

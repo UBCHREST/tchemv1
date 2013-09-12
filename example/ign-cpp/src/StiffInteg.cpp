@@ -54,43 +54,43 @@ int StiffInteg::compute(double tend, double *deltat, double deltatMax,
   /* Create cvode solver */
   void *cvode_mem = NULL;
   cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
-  this->Check_CVflag(cvode_mem, "StiffInteg::compute : CVodeCreate", 0) ;
+  this->Check_CVflag(cvode_mem, (char *) "StiffInteg::compute : CVodeCreate", 0) ;
   
   /* Allocate memory */
   cvflag = CVodeInit(cvode_mem, &chemrhswrapper, tstart, y0);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVodeInit", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVodeInit", 1) ;
   cvflag = CVodeSVtolerances(cvode_mem, relT, absT);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVodeSVtolerances", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVodeSVtolerances", 1) ;
 
   /* Set dense solver */
   cvflag = CVDense(cvode_mem, Nvars_ );
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVDense", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVDense", 1) ;
   
   /* Set work array */
   cvflag = CVodeSetUserData(cvode_mem, (void *) udata);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVodeSetUserData", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVodeSetUserData", 1) ;
 
 #ifdef USEJAC
   /* Set dense Jacobian */
   cvflag = CVDlsSetDenseJacFn(cvode_mem, &chemjacwrapper);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVDlsSetDenseJacFn", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVDlsSetDenseJacFn", 1) ;
 #endif
 
   /* Set maximum order for the integratiom method */
   cvflag = CVodeSetMaxOrd(cvode_mem, CVmaxord_);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVodeSetMaxOrd", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVodeSetMaxOrd", 1) ;
   
   /* Set maximum number of steps */
   cvflag = CVodeSetMaxNumSteps(cvode_mem, CVmaxnumsteps_);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVodeSetMaxNumSteps", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVodeSetMaxNumSteps", 1) ;
 
   /* Set stop value */
   cvflag = CVodeSetStopTime(cvode_mem, tend);
-  this->Check_CVflag(&cvflag, "StiffInteg::compute : CVodeSetStopTime", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "StiffInteg::compute : CVodeSetStopTime", 1) ;
 
   /* Call CVodeRootInit to specify the root function g with 1 components */
   cvflag = CVodeRootInit(cvode_mem, 1, &findignwrap);
-  this->Check_CVflag(&cvflag, "CVodeRootInit", 1) ;
+  this->Check_CVflag(&cvflag, (char *) "CVodeRootInit", 1) ;
 
   double t = tstart ;
   int    iter = 0 ;
@@ -134,7 +134,7 @@ int StiffInteg::compute(double tend, double *deltat, double deltatMax,
     if (cvflag == CV_ROOT_RETURN) {
       int rootsfound[1] ;
       int flagroot = CVodeGetRootInfo(cvode_mem, rootsfound);
-      this->Check_CVflag(&flagroot, "CVodeGetRootInfo", 1) ;
+      this->Check_CVflag(&flagroot, (char *) "CVodeGetRootInfo", 1) ;
       printf("Found time_id1 : %20.12e\n",tret);
       time_id1 = tret ;
     }

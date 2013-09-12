@@ -134,6 +134,105 @@ int TC_getSrc(double *scal,int Nvars,double *omega)
  
 }
 
+/**
+ * \ingroup srcs
+ * \brief Returns source term for constant volume ignition system
+ * \f[\frac{\partial T}{\partial t}=\omega_0,\frac{\partial Y_i}{\partial t}=\omega_i,\f]
+ *  based on temperature T and species mass fractions Y's
+ */
+
+int TC_getSrcCV(double *scal,int Nvars,double *omega)
+{
+
+/**
+   \param scal : array of Nspec+1 doubles \f$(T,Y_1,Y_2,...,Y_{N_{spec}})\f$
+	        temperature T [K], mass fractions Y [] 
+   \param Nvars : no. of variables \f$ N_{vars}= N_{spec}+1\f$ 
+   \return omega : array of N<sub>spec</sub>+1 source terms for temperature and species
+                   mass fractions: omega[0] : [(K/s)], omega[1...N<sub>spec</sub>] : [(1/s)]
+*/
+
+  int i, ans ;
+  double temperature, *Yspec, *omegaspec, rhomix, orho, cpmix, wmix, sumYoW, gamma, c1g, c2g ;
+  double psum ;
+
+  if ( Nvars != TC_Nvars_ ) 
+    TC_errorMSG( 20, "TC_getSrcCV", Nvars, TC_Nvars_ ) ;
+
+  if ( TC_rhoset_ == 0 ) {
+    printf("TC_getSrcCV() - density was not set -> Abort !\n") ;
+    exit(1);
+  }
+
+  /* re-scale pressure to get appropriate density */
+  ans = TC_getRhoMixMs(scal,Nvars,&rhomix) ;
+  TC_setThermoPres(TC_pressure_ * TC_rho_/rhomix) ;
+
+  ans         = 0 ;
+  temperature =  scal[0]  ;
+  Yspec       = &scal[1]  ;
+  omegaspec   = &omega[1] ;
+
+  /* get species molar reaction rates */
+  ans = TC_getTY2RRms(scal,Nvars,omegaspec) ;
+  if ( ans != 0 ) return ( ans ) ;
+
+#ifdef DEBUGMSG
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) 
+    printf("TC_getSrc() : Yspec[%-3d] = %e, omega[%-3d] = %e\n",i+1,Yspec[i],i+1,omega[i+1]) ;
+#endif
+
+  /* get cpmix, gamma, and gamma factors */
+  ans = TC_getMs2CpMixMs(scal,Nvars,&cpmix ) ;
+  if ( ans != 0 ) return ( ans ) ;
+  sumYoW = 0.0 ;
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) sumYoW += Yspec[i] / TC_sMass_[i] ;
+  wmix = 1.0 / sumYoW ;
+
+  /* gamma and gamma factors */
+  gamma = cpmix / ( cpmix - TC_Runiv_/wmix );
+  c1g = (gamma*gamma)/(2.0*gamma-1.0) ;
+  c2g = (gamma-1.0)*(gamma-1.0)/(2.0*gamma-1.0) ;
+
+
+#ifdef DEBUGMSG
+  printf("TC_getSrc() : (cpmix,gamma)=(%e,%e)\n",cpmix,gamma) ;
+#endif
+
+  /* get species enthalpies */
+  ans = TC_getHspecMs(temperature,TC_Nspec_,TC_hks) ;
+  if ( ans != 0 ) return ( ans ) ;
+  
+  /* transform reaction rate to source term (*Wi/rho) */
+  orho = 1.0/rhomix ;
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) omegaspec[i] *= orho ;
+
+#ifdef NONNEG
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) 
+    if ( ( Yspec[i]<0 ) && ( omegaspec[i] < 0 ) ) omegaspec[i] = 0.0 ;
+#endif
+  
+  /* compute source term for temperature */
+  omega[0] = 0.0 ;
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) omega[0] += omegaspec[i]*TC_hks[i] ;
+  omega[0] = c1g * ( -omega[0] / cpmix ) ;
+
+  /* add second term */
+  psum = 0.0 ;
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) psum += omegaspec[i]/TC_sMass_[i] ;
+  omega[0] += c2g * temperature * wmix * psum ;
+  
+
+#ifdef DEBUGMSG
+  printf("TC_getSrc() : omega[(%-3d] = %e\n",0,omega[0]) ;
+  for ( i = 0 ; i < TC_Nspec_ ; i++ ) printf("TC_getSrcCV() : omega[(%-3d] = %e\n",i+1,omega[i+1]) ;
+  exit(1) ;
+#endif
+
+  return ( ans ) ;
+ 
+}
+
 
 /*
                 _   ____            ____                
@@ -815,31 +914,27 @@ int TC_getJacRPTYNanl(double *scal, int Nspec, double *jac)
 
   /* check for reactions with real stoichiometric coefficients */
   if ( TC_nRealNuReac_ > 0 )
-    for ( ir = 0 ; ir < TC_nRealNuReac_; ir++ )
-    {
+    for ( ir = 0 ; ir < TC_nRealNuReac_; ir++ ) {
 
       i = TC_reacRnu_[ir] ;
 
       indx  = i *TC_maxSpecInReac_ ;
       indxR = ir*TC_maxSpecInReac_ ;      
-      for ( j = 0 ; j<TC_reacNreac_[i] ; j++)
-      {
-	int kspec = TC_reacSidx_[indx] ;
-	TC_omg[kspec] += TC_reacRealNuki_[indxR]*TC_rop[i] ;
-	indx++  ;
-	indxR++ ;
+      for ( j = 0 ; j<TC_reacNreac_[i] ; j++) {
+        int kspec = TC_reacSidx_[indx] ;
+        TC_omg[kspec] += TC_reacRealNuki_[indxR]*TC_rop[i] ;
+        indx++  ;
+        indxR++ ;
       }
 
       indx  = i *TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
       indxR = ir*TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
-      for ( j = 0; j<TC_reacNprod_[i] ; j++)
-      {
-	int kspec = TC_reacSidx_[indx] ;
-	TC_omg[kspec] += TC_reacRealNuki_[indxR]*TC_rop[i] ;
-	indx++  ;
-	indxR++ ;
+      for ( j = 0; j<TC_reacNprod_[i] ; j++) {
+        int kspec = TC_reacSidx_[indx] ;
+        TC_omg[kspec] += TC_reacRealNuki_[indxR]*TC_rop[i] ;
+	      indx++  ;
+	      indxR++ ;
       }
-
     } /* done loop over the number of reactions */
 
   /* transform from mole/(cm3.s) to kg/(m3.s) */
@@ -850,8 +945,7 @@ int TC_getJacRPTYNanl(double *scal, int Nspec, double *jac)
   itbdy = 0 ; 
   ipfal = 0 ; 
   iord  = 0 ;
-  for (j = 0 ; j < TC_Nreac_; j++)
-  {
+  for (j = 0 ; j < TC_Nreac_; j++) {
 
     unsigned int arbord ;
     /* compute {\partial Crnd}/{\partial T,Y1,Y2,...,YN} */
@@ -861,158 +955,124 @@ int TC_getJacRPTYNanl(double *scal, int Nspec, double *jac)
     if ( iord < TC_nOrdReac_ )
       if (TC_reacAOrd_[iord] == j) arbord = 1 ;
 
-    if ( TC_reacScoef_[j] == -1 )
-    {
+    if ( TC_reacScoef_[j] == -1 ) {
+
       /* reaction has integer stoichiometric coefficients */
-      for ( i = 0 ; i < TC_Nspec_ ; i++)
-      {
+      for ( i = 0 ; i < TC_Nspec_ ; i++) {
       
-	/* skip if species i is not involved in reaction j */
-	int indxIJ = j*TC_Nspec_+i ;
-	if ( TC_NuIJ[indxIJ] == 0 ) continue ;
+        /* skip if species i is not involved in reaction j */
+        int indxIJ = j*TC_Nspec_+i ;
+        if ( TC_NuIJ[indxIJ] == 0 ) continue ;
       
-	/* add 1st term for the T,Y1,Y2,...,YN - derivatives */
-	iJac = TC_Nvjac_*(i+3)+2 ; 
-	for ( k = -1 ; k < TC_Nspec_ ; k++,iJac++)
-	  jac[iJac] += TC_NuIJ[indxIJ]*TC_CrndDer[k+1]*(TC_ropFor[j]-TC_ropRev[j]) ;
+        /* add 1st term for the T,Y1,Y2,...,YN - derivatives */
+        iJac = TC_Nvjac_*(i+3)+2 ; 
+        for ( k = -1 ; k < TC_Nspec_ ; k++,iJac++)
+          jac[iJac] += TC_NuIJ[indxIJ]*TC_CrndDer[k+1]*(TC_ropFor[j]-TC_ropRev[j]) ;
 
-	/* add 2nd term for T-derivative F[3+i,2] */
-	iJac = TC_Nvjac_*(i+3)+2 ; 
-	jac[iJac] += TC_NuIJ[indxIJ]*TC_Crnd[j]*(TC_ropFor[j]*TC_kforP[j]-TC_ropRev[j]*TC_krevP[j]) ;
+        /* add 2nd term for T-derivative F[3+i,2] */
+        iJac = TC_Nvjac_*(i+3)+2 ; 
+        jac[iJac] += TC_NuIJ[indxIJ]*TC_Crnd[j]*(TC_ropFor[j]*TC_kforP[j]-TC_ropRev[j]*TC_krevP[j]) ;
       
-	/* add 2nd term for species derivatives F[3+i,3+k] */
-	if ( !arbord )
-	{
-	  indx = j*TC_maxSpecInReac_ ;
-	  for ( kspec = 0; kspec<TC_reacNreac_[j] ; kspec++)
-	  {
-	    k = TC_reacSidx_[indx] ;
-	    iJac = TC_Nvjac_*(i+3)+3+k ; 
-	    TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	    jac[iJac] += TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
-	    indx++ ;
-	    
-	  } /* done loop over species k in reactants (2nd term) */
-	
-	  indx  = j*TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
-	  for ( kspec = 0; kspec<TC_reacNprod_[j] ; kspec++)
-	  {
-	    k = TC_reacSidx_[indx] ;
-	    iJac = TC_Nvjac_*(i+3)+3+k ; 
-	    TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	    jac[iJac] -= TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
-	    indx++ ;
-	  
-	  } /* done loop over species k in products (2nd term) */
+        /* add 2nd term for species derivatives F[3+i,3+k] */
+        if ( !arbord ) {
+          indx = j*TC_maxSpecInReac_ ;
+          for ( kspec = 0; kspec<TC_reacNreac_[j] ; kspec++) {
+            k = TC_reacSidx_[indx] ;
+            iJac = TC_Nvjac_*(i+3)+3+k ; 
+            TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+            jac[iJac] += TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
+            indx++ ;
+          } /* done loop over species k in reactants (2nd term) */
 
-	} /* done section for non-arbitrary order reactions */
-	else
-	{
-	  /* arbitrary order reaction */
-	  indx  = iord*TC_maxOrdPar_ ;
-	  for ( kspec = 0; kspec<TC_maxOrdPar_ ; kspec++)
-	  {
-	    if (TC_specAOidx_[indx]<0) 
-	    {
-	      k = -TC_specAOidx_[indx]-1 ;
-	      iJac = TC_Nvjac_*(i+3)+3+k ; 
-	      TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	      jac[iJac] += TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
-	    }
-	    else if (TC_specAOidx_[indx]>0) 
-	    {
-	      k = TC_specAOidx_[indx]-1 ;
-	      iJac = TC_Nvjac_*(i+3)+3+k ; 
-	      TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	      jac[iJac] -= TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
-	    }
-	    indx++ ;
-
-	  }
-
-	} /* done section for arbitrary order reaction */
-
+          indx  = j*TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
+          for ( kspec = 0; kspec<TC_reacNprod_[j] ; kspec++) {
+            k = TC_reacSidx_[indx] ;
+            iJac = TC_Nvjac_*(i+3)+3+k ; 
+            TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+            jac[iJac] -= TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
+            indx++ ;
+          } /* done loop over species k in products (2nd term) */
+        } /* done section for non-arbitrary order reactions */
+        else {
+          /* arbitrary order reaction */
+          indx = iord*TC_maxOrdPar_ ;
+          for ( kspec = 0; kspec<TC_maxOrdPar_ ; kspec++) {
+            if (TC_specAOidx_[indx]<0) {
+              k = -TC_specAOidx_[indx]-1 ;
+              iJac = TC_Nvjac_*(i+3)+3+k ; 
+              TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+              jac[iJac] += TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
+            }
+            else if (TC_specAOidx_[indx]>0) {
+              k = TC_specAOidx_[indx]-1 ;
+              iJac = TC_Nvjac_*(i+3)+3+k ; 
+              TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+              jac[iJac] -= TC_NuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
+            }
+            indx++ ;
+          }
+	      } /* done section for arbitrary order reaction */
       } /* done loop over species (counter i) for integer stoichiometric coefficients */
     } /* end if integer coeffs */
-    else
-    {
+    else {
+
       /* reaction has real stoichiometric coefficients */
-      for ( i = 0 ; i < TC_Nspec_ ; i++)
-      {
+      for ( i = 0 ; i < TC_Nspec_ ; i++) {
+        int jr = TC_reacScoef_[j] ;
+        /* skip if species i is not involved in reaction j */
+        int indxIJ = jr*TC_Nspec_+i ;
+        if ( TC_RealNuIJ[indxIJ] < TCSMALL ) continue ;
       
-	int jr = TC_reacScoef_[j] ;
-	/* skip if species i is not involved in reaction j */
-	int indxIJ = jr*TC_Nspec_+i ;
-	if ( TC_RealNuIJ[indxIJ] < TCSMALL ) continue ;
+        /* add 1st term for the T,Y1,Y2,...,YN - derivatives */
+        iJac = TC_Nvjac_*(i+3)+2 ; 
+        for ( k = -1 ; k < TC_Nspec_ ; k++,iJac++)
+          jac[iJac] += TC_RealNuIJ[indxIJ]*TC_CrndDer[k+1]*(TC_ropFor[j]-TC_ropRev[j]) ;
+
+        /* add 2nd term for T-derivative F[3+i,2] */
+        iJac = TC_Nvjac_*(i+3)+2 ; 
+        jac[iJac] += TC_RealNuIJ[indxIJ]*TC_Crnd[j]*(TC_ropFor[j]*TC_kforP[j]-TC_ropRev[j]*TC_krevP[j]) ;
       
-	/* add 1st term for the T,Y1,Y2,...,YN - derivatives */
-	iJac = TC_Nvjac_*(i+3)+2 ; 
-	for ( k = -1 ; k < TC_Nspec_ ; k++,iJac++)
-	  jac[iJac] += TC_RealNuIJ[indxIJ]*TC_CrndDer[k+1]*(TC_ropFor[j]-TC_ropRev[j]) ;
+        /* add 2nd term for species derivatives F[3+i,3+k] */
+        if ( !arbord ) {
 
-	/* add 2nd term for T-derivative F[3+i,2] */
-	iJac = TC_Nvjac_*(i+3)+2 ; 
-	jac[iJac] += TC_RealNuIJ[indxIJ]*TC_Crnd[j]*(TC_ropFor[j]*TC_kforP[j]-TC_ropRev[j]*TC_krevP[j]) ;
-      
-	/* add 2nd term for species derivatives F[3+i,3+k] */
-	if ( !arbord )
-	{
-	
-	  indx  = j *TC_maxSpecInReac_ ;
-	  indxR = jr*TC_maxSpecInReac_ ;
-	  for ( kspec = 0; kspec<TC_reacNreac_[j] ; kspec++)
-	  {
-	    k = TC_reacSidx_[indx] ;
-	    iJac = TC_Nvjac_*(i+3)+3+k ; 
-	    TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	    jac[iJac] += TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
-	    indx++ ;
-	    indxR++ ;
+          indx = j *TC_maxSpecInReac_ ;
+          for ( kspec = 0; kspec<TC_reacNreac_[j] ; kspec++) {
+            k = TC_reacSidx_[indx] ;
+            iJac = TC_Nvjac_*(i+3)+3+k ; 
+            TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+            jac[iJac] += TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
+            indx++ ;
+          } /* done loop over species k in reactants (2nd term) */
 
-	  } /* done loop over species k in reactants (2nd term) */
-	
-	  indx  = j *TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
-	  indx  = jr*TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
-	  for ( kspec = 0; kspec<TC_reacNprod_[j] ; kspec++)
-	  {
-	    k = TC_reacSidx_[indx] ;
-	    iJac = TC_Nvjac_*(i+3)+3+k ; 
-	    TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	    jac[iJac] -= TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
-	    indx++ ;
-	    indxR++ ;
-	  
-	  } /* done loop over species k in products (2nd term) */
-	
-	}
-	else
-	{
-	  /* arbitrary order reaction */
-	  indx  = iord*TC_maxOrdPar_ ;
-	  for ( kspec = 0; kspec<TC_maxOrdPar_ ; kspec++)
-	  {
-	    if (TC_specAOidx_[indx]<0) 
-	    {
-	      k = -TC_specAOidx_[indx]-1 ;
-	      iJac = TC_Nvjac_*(i+3)+3+k ; 
-	      TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	      jac[iJac] += TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
-	    }
-	    else if (TC_specAOidx_[indx]>0) 
-	    {
-	      k = TC_specAOidx_[indx]-1 ;
-	      iJac = TC_Nvjac_*(i+3)+3+k ; 
-	      TC_getRateofProgDer(TC_Xconc, j, k, qfr);
-	      jac[iJac] -= TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
-	    }
-	    indx++ ;
-
-	  }
-
-	} /* done section for arbitrary order reaction */
-
+          indx = j *TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
+          for ( kspec = 0; kspec<TC_reacNprod_[j] ; kspec++) {
+            k = TC_reacSidx_[indx] ;
+            iJac = TC_Nvjac_*(i+3)+3+k ; 
+            TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+            jac[iJac] -= TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
+            indx++ ;	  
+          } /* done loop over species k in products (2nd term) */
+        }
+        else {
+          /* arbitrary order reaction */
+          indx = iord*TC_maxOrdPar_ ;
+          for ( kspec = 0; kspec<TC_maxOrdPar_ ; kspec++) {
+            if (TC_specAOidx_[indx]<0) {
+              k = -TC_specAOidx_[indx]-1 ;
+              iJac = TC_Nvjac_*(i+3)+3+k ; 
+              TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+              jac[iJac] += TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[0];
+            }
+            else if (TC_specAOidx_[indx]>0) {
+              k = TC_specAOidx_[indx]-1 ;
+              iJac = TC_Nvjac_*(i+3)+3+k ; 
+              TC_getRateofProgDer(TC_Xconc, j, k, qfr);
+              jac[iJac] -= TC_RealNuIJ[indxIJ]*TC_Crnd[j]*qfr[1];
+            }
+            indx++ ;
+          }
+        } /* done section for arbitrary order reaction */
       } /* done loop over species i */
-
     } /* done if real stoichiometric coeffs */
 
     if ( arbord ) iord++ ;

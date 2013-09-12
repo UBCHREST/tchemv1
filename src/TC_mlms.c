@@ -247,7 +247,7 @@ int TCDND_getMs2Wmix(double *Yspec,int Nspec,double *Wmix)
 
   ans = TC_getMs2Wmix( Yspec, Nspec, Wmix) ;
 
-  (*Wmix) /= TC_Wref_ ;
+  if ( TC_nonDim_ == 1 ) (*Wmix) /= TC_Wref_ ;
 
   return ( ans ) ;
 
@@ -315,7 +315,7 @@ int TCDND_getMl2Wmix(double *Xspec,int Nspec,double *Wmix)
 
   ans = TC_getMs2Wmix( Xspec, Nspec, Wmix) ;
 
-  (*Wmix) /= TC_Wref_ ;
+  if ( TC_nonDim_ == 1 ) (*Wmix) /= TC_Wref_ ;
 
   return ( ans ) ;
 

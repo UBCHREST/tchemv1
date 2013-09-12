@@ -50,6 +50,12 @@
 #define NTHRDBMAX 10
 
 /**
+ * \def NTH9RNGMAX
+ * Maximum number of temperature ranges for 9-coefficients NASA polynomials
+ */
+#define NTH9RNGMAX 5
+
+/**
  * \def NSPECREACMAX
  * Maximum number of reactant or product species in a reaction 
  */

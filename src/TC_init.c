@@ -7,6 +7,10 @@
  * \brief Initialize library
 */
 
+int icomp (const void * a, const void * b)
+{
+  return ( *(int*)a - *(int*)b );
+}
 int TC_initChem(char *mechfile,char *thermofile, int tab, double delT)
 {
   /**
@@ -29,19 +33,22 @@ int TC_initChem(char *mechfile,char *thermofile, int tab, double delT)
   TC_isInit_   = 0 ;
   TC_pressure_ = 0.0 ;
   TC_prescgs_  = 0.0 ;
+  TC_rho_      = 0.0 ;
+  TC_rhocgs_   = 0.0 ;
+  TC_rhoset_   = 0   ;
   TC_Runiv_    = 0.0 ;
   TC_Rcal_     = 0.0 ;
   TC_Rcgs_     = 0.0 ;
 
   /* integers */
-  TC_Nvars_  =  TC_Nvjac_ = 0 ;
-  TC_maxSpecInReac_  = TC_maxTbInReac_  = TC_nNASAinter_  = TC_nCpCoef_   = TC_nArhPar_   = TC_nLtPar_ = 0 ;
-  TC_nFallPar_ = TC_nJanPar_   = TC_maxOrdPar_ = TC_nFit1Par_  = 0;
-  TC_Nelem_  = TC_Nspec_  = TC_Nreac_  = TC_nRevReac_  = TC_nFallReac_   = TC_nThbReac_ = 0 ;
-  TC_nLtReac_   = TC_nRltReac_   = TC_nHvReac_    = TC_nIonSpec_ = TC_nJanReac_   = TC_nFit1Reac_ = 0 ;
-  TC_nExciReac_   = TC_nMomeReac_   = TC_nXsmiReac_   = TC_nTdepReac_  = TC_nRealNuReac_   = TC_nOrdReac_ = 0 ;
-  TC_electrIndx_ = TC_nIonEspec_  = 0 ;
-  
+  TC_Nvars_ = TC_Nvjac_ = 0 ;
+  TC_maxSpecInReac_ = TC_maxTbInReac_ = TC_nNASAinter_ = TC_nCpCoef_ = TC_nArhPar_ = TC_nLtPar_ = 0 ;
+  TC_nFallPar_ = TC_nJanPar_ = TC_maxOrdPar_ = TC_nFit1Par_  = 0;
+  TC_Nelem_ = TC_Nspec_ = TC_Nreac_ = TC_nRevReac_ = TC_nFallReac_ = TC_nThbReac_ = 0 ;
+  TC_nLtReac_ = TC_nRltReac_ = TC_nHvReac_  = TC_nIonSpec_ = TC_nJanReac_ = TC_nFit1Reac_ = 0 ;
+  TC_nExciReac_ = TC_nMomeReac_ = TC_nXsmiReac_ = TC_nTdepReac_ = TC_nRealNuReac_ = TC_nOrdReac_ = 0 ;
+  TC_electrIndx_ = TC_nIonEspec_ = TC_nNASA9coef_ = 0 ;
+                                    
   /* elements & species -> names, masses, and element count */
   TC_sNames_    = 0 ;
   TC_eNames_    = 0 ;
@@ -275,11 +282,13 @@ int TC_initChem(char *mechfile,char *thermofile, int tab, double delT)
   fscanf(chemfile,"%d",&TC_nOrdReac_      ) ; 
   fscanf(chemfile,"%d",&TC_electrIndx_    ) ; 
   fscanf(chemfile,"%d",&TC_nIonEspec_     ) ; 
+  fscanf(chemfile,"%d",&TC_nNASA9coef_    ) ; 
 
   fprintf(echofile,"kmod.list : Max # of species in a reaction                    : %d\n",TC_maxSpecInReac_ ) ;
   fprintf(echofile,"kmod.list : Max # of third-body efficiencies in a reaction    : %d\n",TC_maxTbInReac_   ) ;
   fprintf(echofile,"kmod.list : # of temperature regions for thermo fits          : %d\n",TC_nNASAinter_    ) ;
   fprintf(echofile,"kmod.list : # of polynomial coefficients for thermo fits      : %d\n",TC_nCpCoef_       ) ;
+  fprintf(echofile,"kmod.list : # of species with 9 coefficients thermo props     : %d\n",TC_nNASA9coef_    ) ;
   fprintf(echofile,"kmod.list : # of Arrhenius parameters                         : %d\n",TC_nArhPar_   ) ;
   fprintf(echofile,"kmod.list : # of parameters for Landau-Teller reactions       : %d\n",TC_nLtPar_    ) ;
   fprintf(echofile,"kmod.list : # of parameters for pressure-dependent reactions  : %d\n",TC_nFallPar_  ) ;
@@ -371,7 +380,6 @@ int TC_initChem(char *mechfile,char *thermofile, int tab, double delT)
       fprintf( echofile, "%-3d\t",TC_elemcount_[i*TC_Nelem_+j]) ;
     fprintf(echofile,"\n") ;
   }
-  fprintf(echofile,"-------------------------------------------------------------------------\n") ;
 
   /* Species charges, no of tempfits, phase */
   TC_sCharge_ = (int *) malloc ( TC_Nspec_ * sizeof(int) ) ;
@@ -420,6 +428,35 @@ int TC_initChem(char *mechfile,char *thermofile, int tab, double delT)
 	     TC_cppol_[indx+10],TC_cppol_[indx+11],TC_cppol_[indx+12],TC_cppol_[indx+13]) ;
   }
   fprintf(echofile,"-------------------------------------------------------------------------\n") ;
+
+  /* Polynomial coeffs for 9-term thermo fits */
+  if ( TC_nNASA9coef_ > 0 ) 
+  {
+
+    fscanf( chemfile,"%d",  &TC_nNASA9coef_ ) ;
+
+    TC_spec9t_    = (int *) malloc ( TC_nNASA9coef_ * sizeof(int) ) ;
+    TC_spec9nrng_ = (int *) malloc ( TC_nNASA9coef_ * sizeof(int) ) ;
+    TC_spec9trng_  = (double *) malloc ( TC_nNASA9coef_*NTH9RNGMAX*2 * sizeof(double) ) ;
+    TC_spec9coefs_ = (double *) malloc ( TC_nNASA9coef_*NTH9RNGMAX*9 * sizeof(double) ) ;
+
+
+    for (i=0;i<TC_nNASA9coef_;i++)
+    {
+      fscanf( chemfile,"%d", &TC_spec9t_[i]   ) ; TC_spec9t_[i] -= 1;
+      fscanf( chemfile,"%d", &TC_spec9nrng_[i] ) ;
+
+      for ( j = 0; j<TC_spec9nrng_[i]; j++ )
+      {
+	fscanf( chemfile,"%lf", &TC_spec9trng_[i*NTH9RNGMAX*2+2*j  ] ) ;
+	fscanf( chemfile,"%lf", &TC_spec9trng_[i*NTH9RNGMAX*2+2*j+1] ) ;
+        for ( k = 0; k < 9; k++ )
+	  fscanf( chemfile,"%lf", &TC_spec9coefs_[i*NTH9RNGMAX*9+k]);
+
+      } /* done loop over temperature ranges */
+    } /* done loop over species */
+  } /* done if for species with 9-coefficients thermo props */
+
 
   /* Ionic species */
   if ( TC_nIonEspec_ > 0 ) 
@@ -824,18 +861,21 @@ int TC_initChem(char *mechfile,char *thermofile, int tab, double delT)
     {
       /* reactants */
       int jR=TC_reacRnu_[j];
-      int indx = j*TC_maxSpecInReac_, kspec ;
+      int indxR = j *TC_maxSpecInReac_, kspec ;
+      int indx  = jR*TC_maxSpecInReac_ ;
       for ( i = 0; i<TC_reacNreac_[jR] ; i++) 
       {
-	kspec = TC_reacSidx_[TC_reacRnu_[indx+i]] ;
-	TC_RealNuIJ[j*TC_Nspec_+kspec] += TC_reacRealNuki_[indx+i] ;
+	kspec = TC_reacSidx_[indx+i] ;
+	TC_RealNuIJ[j*TC_Nspec_+kspec] += TC_reacRealNuki_[indxR+i] ;
       }
+      printf("got here...........\n");fflush(stdout);
       /* products */
-      indx = j*TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
+      indxR = j *TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
+      indx  = jR*TC_maxSpecInReac_+TC_maxSpecInReac_/2 ;
       for ( i = 0; i<TC_reacNprod_[jR] ; i++) 
       {
-	kspec = TC_reacSidx_[TC_reacRnu_[indx+i]] ;
-	TC_RealNuIJ[j*TC_Nspec_+kspec] += TC_reacRealNuki_[indx+i] ;
+	kspec = TC_reacSidx_[indx+i] ;
+	TC_RealNuIJ[j*TC_Nspec_+kspec] += TC_reacRealNuki_[indxR+i] ;
       }
     }
   }
@@ -964,7 +1004,272 @@ void TC_setThermoPres(double pressure)
   return ;
 
 }
+/**
+ * \ingroup init
+ * \brief Retrieve thermodynamic pressure to the library.
+ */
+double TC_getThermoPres() {
+  return ( TC_pressure_ ) ;
+}
+/**
+ * \ingroup init
+ * \brief Send density to the library.
+ */
+void TC_setDens(double density)
+{
+/**
+  \param density : mixture density \f$[kg/m^3]\f$
+*/
+  TC_rho_ = density ;
   
+  /* Need dimensional density -> convert the input if necessary */
+  if ( TC_nonDim_ == 1 ) TC_rho_ *= TC_rhoref_ ;
+
+  TC_rhocgs_  = TC_rho_*0.001 ;
+
+  TC_rhoset_  = 1 ;
+
+  return ;
+
+}
+
+/* void TC_reduce(int nspRed, char *specListNameDel) { */
+  
+/*   int i, j, k, k1, l, kspec, indx, nircDel, minpos; */
+/*   int *specListNum, *reacItListNum; */
+/*   int foundDuplSpec = 0,foundDuplReac = 0; */
+
+/*   /\* check if there are species *\/ */
+/*   if ( nspRed <= 0 ) { */
+/*     printf("Number of species is less or equal to zero : %d\n",nspRed); */
+/*     exit(0); */
+/*   } */
+
+/*   /\* check for duplicates *\/ */
+/*   for ( j = 0; j < nspRed-1; j++) */
+/*     for ( i = j+1; i < nspRed; i++) */
+/*       if (strcmp(&(specListNameDel[i*LENGTHOFSPECNAME]), */
+/* 		 &(specListNameDel[j*LENGTHOFSPECNAME])) == 0) */
+/*       { */
+/*         /\* found duplicate species *\/ */
+/* 	foundDuplSpec = 1; */
+/* 	printf("Found duplicate species at positions %d, %d\n",i,j); */
+/*       } */
+/*   if (foundDuplSpec==1) exit(0); */
+
+/*    /\* check species names in current model *\/ */
+/*   specListNum = (int*) malloc(nspRed*sizeof(int)); */
+/*   minpos=0; */
+/*   for ( j = 0; j < nspRed; j++) { */
+/*     specListNum[j] = -1; */
+/*     for ( i = 0; i < TC_Nspec_; i++) */
+/*       if (strcmp(&(specListNameDel[j*LENGTHOFSPECNAME]), */
+/* 		 &(TC_sNames_[i*LENGTHOFSPECNAME])) == 0) */
+/*       { */
+/*         /\* found match *\/ */
+/*         specListNum[j] = i; break; */
+/*       } */
+/*     if ( specListNum[j] == -1 ) { */
+/*       printf("Could not find match for %s\n", */
+/*         &(specListNameDel[j*LENGTHOFSPECNAME])); */
+/*       minpos++; */
+/*     } */
+/*   } */
+/*   if ( minpos > 0 ) { */
+/*     printf("Could not find matches for %d species\n",minpos); exit(0); */
+/*   } */
+
+/*   /\* sort list of species *\/ */
+/*   qsort (specListNum, nspRed, sizeof(int), icomp); */
+
+/*    /\* check species in reactions *\/ */
+/*   nircDel = 0; */
+/*   reacItListNum = (int*) malloc(TC_Nreac_*sizeof(int)); */
+/*   for ( i = 0 ; i<TC_Nreac_; i++) */
+/*   { */
+/*     indx = i * TC_maxSpecInReac_; */
+/*     for ( j = 0; j<TC_reacNreac_[i] ; j++, indx++ ) */
+/*     { */
+/*       kspec = TC_reacSidx_[indx] ; */
+/*       for ( k = 0; k < nspRed; k++) */
+/* 	if (kspec == k) { */
+/* 	  nircDel += 1; */
+/* 	  reacItListNum[nircDel-1] = i; */
+/* 	  if ( nircDel > 1 )  */
+/* 	    if ( reacItListNum[nircDel-1] == reacItListNum[nircDel-2] ) */
+/* 	      nircDel--; */
+/* 	} */
+/*     } */
+
+/*     indx = i * TC_maxSpecInReac_ + TC_maxSpecInReac_/2; */
+/*     for ( j = 0; j<TC_reacNprod_[i] ; j++, indx++ ) */
+/*     { */
+/*       kspec = TC_reacSidx_[indx] ; */
+/*       for ( k = 0; k < nspRed; k++) */
+/* 	if (kspec == k) { */
+/* 	  nircDel += 1; */
+/* 	  reacItListNum[nircDel-1] = i; */
+/* 	  if ( nircDel > 1 )  */
+/* 	    if ( reacItListNum[nircDel-1] == reacItListNum[nircDel-2] ) */
+/* 	      nircDel--; */
+/* 	} */
+/*     } */
+
+/*   } /\* done loop over reactions *\/ */
+
+/*   /\* check if any of the species is the 3rd body in a fall-off reaction *\/ */
+/*   if ( TC_nFallReac_  > 0 ) { */
+/*     for ( i=0 ; i < TC_nFallReac_ ; i++ ) { */
+/*       foundDuplReac = 0; */
+/*       for ( k=0 ; k < nircDel; k++ ) */
+/*         if ( reacItListNum[k] == TC_reacPfal_[i] )  */
+/*           foundDuplReac = 1; */
+/*       if ( foundDuplReac == 1 ) continue; */
+/*       for ( j=0; j < nspRed; j++ ) */
+/*         if ( specListNum[j] == TC_reacPspec_[i] ) { */
+/* 	  reacItListNum[k] = TC_reacPfal_[i]; */
+/*           nircDel++; */
+/* 	} */
+/*     } /\* done loop over the number of reactions *\/ */
+/*   } */
+
+/*   printf("Will eliminate %d species and %d reactions\n",nspRed,nircDel); */
+
+/*   /\* Eliminate species *\/ */
+/*   for ( i=0,k=0; i<TC_Nspec_; i++ ) { */
+/*     if ( k == nspRed ) continue; */
+/*     if ( i != specListNum[k] ) continue; */
+
+/*     /\* delete name *\/ */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ ) */
+/*       for ( l=0; l<LENGTHOFSPECNAME; l++ )  */
+/*         TC_sNames_[j*LENGTHOFSPECNAME+l]=TC_sNames_[(j+1)*LENGTHOFSPECNAME+l]; */
+/*     /\* delete mass *\/ */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ ) TC_sMass_[j]=TC_sMass_[j+1]; */
+/*     /\* delete species' elemental composition *\/ */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ ) */
+/*       for ( l=0; l<TC_Nelem_; l++ )  */
+/*         TC_elemcount_[j*TC_Nelem_+l]=TC_elemcount_[(j+1)*TC_Nelem_+l]; */
+/*     /\* delete species charges, no of tempfits, phase *\/ */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ )TC_sCharge_[j]=TC_sCharge_[j+1]; */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ )TC_sTfit_  [j]=TC_sTfit_  [j+1]; */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ )TC_sPhase_ [j]=TC_sPhase_ [j+1]; */
+/*     /\* delete Range of temperatures for thermo fits *\/ */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ )TC_Tlo_[j]=TC_Tlo_[j+1]; */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ )TC_Tmi_[j]=TC_Tmi_[j+1]; */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ )TC_Thi_[j]=TC_Thi_[j+1]; */
+/*     /\* delete Polynomial coeffs for thermo fits *\/ */
+/*     for ( j=i ; j<TC_Nspec_-1 ; j++ ) */
+/*       for ( l=0; l<LENGTHOFSPECNAME; l++ )  */
+/*         TC_sNames_[j*TC_nNASAinter_*(TC_nCpCoef_+2)+l]= */
+/*        TC_sNames_[(j+1)*TC_nNASAinter_*(TC_nCpCoef_+2)+l]; */
+/*     /\* delete Polynomial coeffs for 9-term thermo fits *\/ */
+/*     if ( TC_nNASA9coef_ > 0 ) { */
+/*       for ( k1=0; k1<TC_nNASA9coef_; k1++ ) */
+/*         if ( TC_spec9t_[k1] == specListNum[k] ) { */
+/* 	  for ( j=k1 ; j<TC_nNASA9coef_-1 ; j++ ) TC_spec9t_   [j] = TC_spec9t_   [j+1]-1; */
+/* 	  for ( j=k1 ; j<TC_nNASA9coef_-1 ; j++ ) TC_spec9nrng_[j] = TC_spec9nrng_[j+1]; */
+/*           for ( j=k1 ; j<TC_nNASA9coef_-1 ; j++ )  */
+/* 	    for ( l=0; l<NTH9RNGMAX*2; l++ )  */
+/* 	      TC_spec9trng_[j*NTH9RNGMAX*2+l]=TC_spec9trng_[(j+1)*NTH9RNGMAX*2+l]; */
+/*           for ( j=k1 ; j<TC_nNASA9coef_-1 ; j++ )  */
+/* 	    for ( l=0; l<NTH9RNGMAX*9; l++ )  */
+/* 	      TC_spec9coefs_[j*NTH9RNGMAX*9+l]=TC_spec9coefs_[(j+1)*NTH9RNGMAX*9+l]; */
+/* 	  TC_nNASA9coef_--; */
+/*       } */
+/*     } */
+/*     /\* delete Ionic species *\/ */
+/*     if ( TC_nIonEspec_ > 0 ) { */
+/*       for ( k1=0; k1<TC_nIonEspec_; k1++ ) */
+/*         if ( TC_sNion_[k1] == specListNum[k] ) { */
+/* 	  for ( j=k1 ; j<TC_nIonEspec_-1 ; j++ ) TC_sNion_[j] = TC_sNion_[j+1]-1; */
+/* 	  TC_nIonEspec_--; */
+/* 	} */
+/*     } */
+/*     k++; */
+/*     TC_Nspec_--; */
+/*   } /\* done eliminating species *\/ */
+
+/*   /\* Eliminate reactions *\/ */
+/*   for ( i=0,k=0; i<TC_Nreac_; i++ ) { */
+/*     if ( k == nircDel ) continue; */
+/*     if ( i != reacItListNum[k] ) continue; */
+
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ ) TC_isRev_[j]=TC_isRev_[j+1]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ ) TC_reacNrp_[j]=TC_reacNrp_[j+1]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ ) TC_reacNreac_[j]=TC_reacNreac_[j+1]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ ) TC_reacNprod_[j]=TC_reacNprod_[j+1]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ )  */
+/*       for ( l=0; l<TC_maxSpecInReac_; l++ )  */
+/*         TC_reacNuki_[j*TC_maxSpecInReac_+l]=TC_reacNuki_[(j+1)*TC_maxSpecInReac_+l]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ )  */
+/*       for ( l=0; l<TC_maxSpecInReac_; l++ )  */
+/*         TC_reacNukiDbl_[j*TC_maxSpecInReac_+l]=TC_reacNukiDbl_[(j+1)*TC_maxSpecInReac_+l]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ )  */
+/*       for ( l=0; l<TC_maxSpecInReac_; l++ )  */
+/*          TC_reacSidx_[j*TC_maxSpecInReac_+l]= TC_reacSidx_[(j+1)*TC_maxSpecInReac_+l]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ ) TC_reacScoef_[j]=TC_reacScoef_[j+1]; */
+/*     for ( j=i ; j<TC_Nreac_-1 ; j++ )  */
+/*       for ( l=0; l<3; l++ )  */
+/*         TC_reacArhenFor_[j*3+l]=TC_reacArhenFor_[(j+1)*3+l]; */
+
+/*     /\* delete Reactions with reversible Arrhenius parameters *\/ */
+/*     if ( TC_nRevReac_ > 0 ) { */
+/*       for ( k1=0; k1<TC_nRevReac_; k1++ ) */
+/*         if ( TC_reacRev_[k1] == reacItListNum[k] ) { */
+/* 	  for ( j=k1 ; j<TC_nRevReac_-1 ; j++ ) TC_reacRev_[j] = TC_reacRev_[j+1]-1; */
+/* 	  for ( j=k1 ; j<TC_nRevReac_-1 ; j++ ) */
+/* 	    for ( l=0; l<3; l++ )  */
+/* 	      TC_reacArhenRev_[j*3+l]=TC_reacArhenRev_[(j+1)*3+l]; */
+/* 	  k1--; */
+/* 	  TC_nRevReac_--; */
+/* 	} */
+/*     } */
+
+/*     /\* delete Pressure-dependent reactions *\/ */
+/*     if ( TC_nFallReac_ > 0 ) { */
+/*       for ( k1=0; k1<TC_nFallReac_; k1++ ) */
+/*         if ( TC_reacPfal_[k1] == reacItListNum[k] ) { */
+/* 	  for ( j=k1 ; j<TC_nFallReac_-1 ; j++ ) TC_reacPfal_ [j] = TC_reacPfal_ [j+1]-1; */
+/* 	  for ( j=k1 ; j<TC_nFallReac_-1 ; j++ ) TC_reacPtype_[j] = TC_reacPtype_[j+1]; */
+/* 	  for ( j=k1 ; j<TC_nFallReac_-1 ; j++ ) TC_reacPlohi_[j] = TC_reacPlohi_[j+1]; */
+/* 	  for ( j=k1 ; j<TC_nFallReac_-1 ; j++ ) TC_reacPspec_[j] = TC_reacPspec_[j+1]; */
+/* 	  for ( j=k1 ; j<TC_nFallReac_-1 ; j++ ) */
+/* 	    for ( l=0; l<TC_nFallPar_; l++ )  */
+/* 	      TC_reacPpar_[j*TC_nFallPar_+l]=TC_reacPpar_[(j+1)*TC_nFallPar_+l]; */
+/* 	  k1--; */
+/* 	  TC_nFallReac_--; */
+/* 	} */
+/*     } */
+
+/*     /\* delete Third-body reactions *\/ */
+/*     if ( TC_nThbReac_ > 0 ) { */
+/*       for ( k1=0; k1<TC_nThbReac_; k1++ ) */
+/*         if ( TC_reacTbdy_[k1] == reacItListNum[k] ) { */
+/* 	  for ( j=k1 ; j<TC_nThbReac_-1 ; j++ ) TC_reacTbdy_[j] = TC_reacTbdy_ [j+1]-1; */
+/* 	  for ( j=k1 ; j<TC_nThbReac_-1 ; j++ ) TC_reacTbno_[j] = TC_reacTbno_[j+1]; */
+/* 	  for ( j=k1 ; j<TC_nThbReac_-1 ; j++ ) */
+/* 	    for ( l=0; l<TC_maxTbInReac_; l++ )  */
+/* 	      TC_specTbdIdx_[j*TC_maxTbInReac_+l]=TC_specTbdIdx_[(j+1)*TC_maxTbInReac_+l]; */
+/* 	  for ( j=k1 ; j<TC_nThbReac_-1 ; j++ ) */
+/* 	    for ( l=0; l<TC_maxTbInReac_; l++ )  */
+/* 	      TC_specTbdEff_[j*TC_maxTbInReac_+l]=TC_specTbdEff_[(j+1)*TC_maxTbInReac_+l]; */
+/* 	  k1--; */
+/* 	  TC_nThbReac_--; */
+/* 	} */
+/*     } */
+
+/*     i--; */
+/*     k++ ; */
+/*     TC_Nreac_--; */
+
+/*   } /\* done eliminating reactions *\/ */
+
+/*   return ; */
+
+/* } */
+
+
 /*------------------------------------------------------------------------
                          _                  _            _       
       ___  ___ _ __ ___ (_)      _ __  _ __(_)_   ____ _| |_ ___ 

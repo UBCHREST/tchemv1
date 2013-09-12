@@ -90,7 +90,13 @@ if  ( outtype == 1 ) :
     elif ( nC == 7 ) :
         print 'spec NC7H16  ',Xr_fuel
     else :
-        print 'spec C{0:d}H{1:d}   {other}'.format(int(nC),int(2*nC+2),other=Xr_fuel)
+        if ( nC == 0 ):
+            print 'spec H{0s:d}     '.format(int(2*nC+2)), Xr_fuel
+        elif nC == 1 :
+            print 'spec CH{0:d}   '.format(4), Xr_fuel
+        else :# nC > 1
+            print 'spec C{0:d}H{1:d}   s'.format(int(nC),int(2*nC+2)), Xr_fuel
+            #print 'spec C{0:d}H{1:d}   {other}'.format(int(nC),int(2*nC+2),other=Xr_fuel)
     print 'spec O2      ',Xr_o2
     print 'spec N2      ',Xr_n2
     print 'spec AR      ',Xr_ar

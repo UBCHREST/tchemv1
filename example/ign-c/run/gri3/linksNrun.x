@@ -42,5 +42,5 @@ ln -fs $SRCDIR/ign .
 ./ign 
 
 gnuplot plot.gp
-./cleanfig.x gri3_specMaj.eps
-./cleanfig.x gri3_specMin.eps
+./cleanfig.x specMaj.eps
+./cleanfig.x specMin.eps

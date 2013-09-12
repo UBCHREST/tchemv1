@@ -41,6 +41,8 @@ void Output(int iflag, int iter, double t, double deltat, N_Vector y0, double *s
 #ifdef ALLSPEC
   /* Integrate T+(Nspec) */
   for (i = 0; i < Nvars; i++) scal[i] = NV_Ith_S(y0,i) ;
+  sumY=0.0;
+  for (i = 1; i < Nvars; i++) sumY += NV_Ith_S(y0,i) ;
 #else
   /* Integrate T+(Nspec-1); make sure Y_Nspec = 1-sum(Y_i) */
   scal[0] = NV_Ith_S(y0,0) ;
@@ -54,8 +56,8 @@ void Output(int iflag, int iter, double t, double deltat, N_Vector y0, double *s
 #endif
 
   /* Output */
-  printf(" Iter = %-7d,  t[s] = %14.6e, dt[s] = %14.6e, T[K] = %14.6e\n",
-         iter, t, deltat, scal[0] );
+  printf(" Iter = %-7d,  t[s] = %14.6e, dt[s] = %14.6e, T[K] = %14.6e, sY-1.0 = %14.6e\n",
+         iter, t, deltat, scal[0], sumY-1.0 );
 
   fprintf(myfile,"%-10d  %20.12e  %20.12e", iter, t, deltat );
   for ( i = 0 ; i<Nspec+1 ; i++)   fprintf(myfile,"  %20.12e", scal[i] );

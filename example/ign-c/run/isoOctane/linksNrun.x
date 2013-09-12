@@ -13,7 +13,7 @@ echo "--------------------------------------------------------"
 echo
 
 
-cd $SRCDIR; make clean; make gettig=yes; cd $RUNDIR
+cd $SRCDIR; make clean; make output=yes; cd $RUNDIR
 ln -fs $DATDIR/periodictable.dat .
 
 if [ -f $DATDIR/chem_isoOct.inp ]
@@ -40,7 +40,7 @@ fi
 ln -fs $SRCDIR/ign .
 
 # Set input file parameters
-pfac=10
+pfac=45
 NiterMax=2000000
 oFreq=10
 deltat=1.e-10
@@ -48,24 +48,19 @@ deltatMax=1.e-3
 tEnd=2.0 
 Tini=1000.0
 Temp_id=1500.0
-deltaTemp=10.0
+deltaTemp=1.0
 mech=chem.inp
 thermo=therm.dat
 withTab=0
 getIgnDel=1
-
 # list of equivalence ratios
 eqrat="0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2.0 2.2 2.4 2.6 2.8 3.0"
-pfaclist="10 20 45"
-
-for j in $pfaclist
-do
+#eqrat="0.3 0.4"
 
 touch igndel.dat; /bin/rm -f igndel.dat; touch igndel.dat
-
 for i in $eqrat
 do
-   echo "pfac          $j"         >  input.dat
+   echo "pfac          $pfac"      >  input.dat
    echo "NiterMax      $NiterMax"  >> input.dat
    echo "oFreq         $oFreq"     >> input.dat
    echo "deltat        $deltat"    >> input.dat
@@ -85,13 +80,11 @@ do
    paste eqtmp.dat tid.dat >> igndel.dat
 done
 
-ignfile=igndel_${j}atm.dat
+ignfile=igndel_${pfac}atm.dat
 if [ -e $ignfile ]
 then
   mv $ignfile ${ignfile}.old
 fi
 mv igndel.dat $ignfile
-
-done
 
 exit

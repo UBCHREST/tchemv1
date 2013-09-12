@@ -4,7 +4,7 @@
 
 void setup(int *NiterMax, int *oFreq, double *Tini, double *Temp_id, 
            double *deltat, double *deltatMax, double *tEnd, double *deltaTemp, 
-           double *pressure, double *pfac, unsigned int *withTab, int *getIgnDel, 
+           double *pressure, double *pfac, unsigned int *withTab, int *getIgnDel, int *getSens, 
            double *CVrelt, double *CVsmall, int *CVmaxord, int *CVmaxnumsteps, 
            char *SpecName, double *SpecMsFr, int *specinno,
            int *getDeltatSeq, double **deltatSeq, 
@@ -43,8 +43,9 @@ void setup(int *NiterMax, int *oFreq, double *Tini, double *Temp_id,
   strcpy(mechfile  ,"chem.inp" ) ; 
   strcpy(thermofile,"therm.dat") ;
 
-  *withTab = 0 ;  /* no tabulation          */
-  *getIgnDel = 0 ;/* no ignition delay stop */
+  *withTab = 0 ;  /* no tabulation           */
+  *getIgnDel = 0 ;/* no ignition delay stop  */
+  *getSens   = 0 ;/* no sensitivity analysis */ 
 
   /* read setup file */
   FILE *fsetup = fopen("input.dat","r") ;
@@ -57,6 +58,7 @@ void setup(int *NiterMax, int *oFreq, double *Tini, double *Temp_id,
     if ( strncmp(key,"oFreq"       , 5) == 0 ) fscanf(fsetup, "%d" , oFreq      ) ;
     if ( strncmp(key,"withTab"     , 7) == 0 ) fscanf(fsetup, "%d" , withTab    ) ;
     if ( strncmp(key,"getIgnDel"   , 9) == 0 ) fscanf(fsetup, "%d" , getIgnDel  ) ;
+    if ( strncmp(key,"getSens"     , 7) == 0 ) fscanf(fsetup, "%d" , getSens    ) ;
     if ( strncmp(key,"Tini"        , 4) == 0 ) fscanf(fsetup, "%le", Tini       ) ;
     if ( strncmp(key,"Temp_id"     , 7) == 0 ) fscanf(fsetup, "%le", Temp_id    ) ;
     if ( strncmp(key,"deltatMax"   , 9) == 0 ) fscanf(fsetup, "%le", deltatMax  ) ;
@@ -97,6 +99,7 @@ void setup(int *NiterMax, int *oFreq, double *Tini, double *Temp_id,
   printf("    Thermo props  : %s\n",thermofile ) ;
   printf("    Create tables : %d\n",*withTab    ) ;
   printf("    Do ign del    : %d\n",*getIgnDel  ) ;
+  printf("    Do sensitivity: %d\n",*getSens    ) ;
   printf("    Species mole fractions : \n"    ) ;
   for ( i = 0 ; i<*specinno ; i++)
     if ( fabs(SpecMsFr[i]) > 1.e-15 )

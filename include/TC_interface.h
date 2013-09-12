@@ -78,6 +78,14 @@ void TC_restoreReactions() ;
       
   
 */
+/* functions controlling the 7/9 term NASA polynomial settings */
+void TC_set7term_()   ;
+void TC_unset7term_() ;
+void TC_set9term_()   ;
+void TC_unset9term_() ;
+void TC_setthf9_(char *thf9)  ;
+void TC_unsetthf9_()  ;
+
 /* initializes library */
 int TC_initChem(char *mechfile,char *thermofile, int tab, double delT) ;
 
@@ -90,9 +98,9 @@ void TC_setRefVal(double rhoref, double pref, double Tref, double Wref,
 void TC_setNonDim() ;  
 void TC_setDim() ;
 
-/* set thermodynamic pressure */
-void TC_setThermoPres( double pressure ) ;
-
+/* thermodynamic pressure */
+void   TC_setThermoPres( double pressure ) ;
+double TC_getThermoPres() ;
 /* 
           _____ ____                               
          |_   _/ ___|    ___ _ __   ___  ___   ___ 
@@ -274,6 +282,9 @@ int TC_getJacTYN(double *scal, int Nspec, double *jac, unsigned int useJacAnl) ;
 int TC_getJacRPTYN(double *scal, int Nspec, double *jac, unsigned int useJacAnl) ;
 int TC_getJacRPTYNanl(double *scal, int Nspec, double *jac) ;
 int TC_getJacRPTYNnum(double *scal, int Nspec, double *jac) ;
+  
+/* Eliminate species and reactions from a kinetic model */
+void TC_reduce(char *mechIn, char *slist, char *mechOut);
 
 #ifdef __cplusplus
 } /* End of extern "C" */

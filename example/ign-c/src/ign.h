@@ -55,7 +55,7 @@ void Output(int iflag, int iter, double t, double deltat, N_Vector y0, double *s
 
 void setup(int *NiterMax, int *oFreq, double *Tini, double *Temp_id, 
            double *deltat, double *deltatMax, double *tEnd, double *deltaTemp, 
-           double *pressure, double *pfac, unsigned int *withTab, int *getIgnDel, 
+           double *pressure, double *pfac, unsigned int *withTab, int *getIgnDel, int *getSens, 
            double *CVrelt, double *CVsmall, int *CVmaxord, int *CVmaxnumsteps, 
            char *SpecName, double *SpecMsFr, int *specinno, 
            int *getDeltatSeq, double **deltatSeq, 

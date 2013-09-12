@@ -1,16 +1,3 @@
-Changes in TChem-v0.2
-  - fixed bug that affected the computation of equilibrium constant at pressures other than 1atm.
-    This bug affected the computation of reverse reaction rates in reversible chemical reactions
-  - enhanced the kinetic model parser to handle non-conventional number representations,
-    e.g. 1.234+5 instead of 1.234e+5. It can also handle situations like '1.234 5' (instead of 1.234e5)
-    when the length of the number string is known, e.g. for the NASA polynomial coefficients
-  - improved the computation of Jacobian matrix elements for reactions involving
-    third-body concentrations that are identically zero
-  - improved the computation of the Jacobian matrix elements for reactions involving very small or 
-    very large Troe coefficients. In these cases the contribution of those terms to the reaction
-    rate is effectively null, but those very small or large Troe coefficients created arithmetic 
-    errors in the derivatives computed with TChem-v0.1.
-
 1. To configure the library:
 
    ./configure --with-examples=yes --with-sundials-dir=<path-to-cvode-lib> --with-dvode-dir=<path-to-dvode-lib> --with-doxy

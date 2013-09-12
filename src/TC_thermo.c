@@ -900,10 +900,22 @@ int TC_getCpSpecMs1Fcn(double t, int i, double *cpi)
 
 int TC_getCpSpecMlFcn(double t,double *cpi) 
 {
-  int i, ipol ;
+  int i, ipol, i9t ;
+
+  i9t = 0 ;
   for ( i = 0 ; i < TC_Nspec_ ; i++ )
   {
     int icpst ;
+
+    if ( i9t < TC_nNASA9coef_ )
+    {
+      if ( i == TC_spec9t_[i9t] )
+      {
+	TC_getCpFcn9t(t, i9t, &cpi[i]) ; i9t++ ;
+        continue ;
+      }
+    }
+
     ipol = 0 ;
     if (t > TC_Tmi_[i]) ipol = 1 ;
     icpst = i*7*2+ipol*7 ;
@@ -924,9 +936,18 @@ int TC_getCpSpecMlFcn(double t,double *cpi)
 
 int TC_getCpSpecMl1Fcn(double t, int i, double *cpi) 
 {
-  int ipol ;
+  int ipol, icpst, i9t;
 
-  int icpst ;
+  if ( TC_nNASA9coef_>0 )
+  {
+    for ( i9t=0; i9t<TC_nNASA9coef_; i9t++ )
+      if ( i == TC_spec9t_[i9t] )
+      {
+        TC_getCpFcn9t(t, i9t, cpi) ;
+        return ( 0 ) ;
+      }
+  }
+
   ipol = 0 ;
   if (t > TC_Tmi_[i]) ipol = 1 ;
   icpst = i*7*2+ipol*7 ;
@@ -1035,11 +1056,22 @@ int TC_getCpSpecMsP(double t,int Nspec,double *cpi)
 int TC_getCpSpecMsPFcn(double t,double *cpi) 
 {
 
-  int i, ipol ;
+  int i, ipol, i9t ;
 
+  i9t = 0 ;
   for ( i = 0 ; i < TC_Nspec_ ; i++ )
   {
     int icpst ;
+
+    if ( i9t < TC_nNASA9coef_ )
+    {
+      if ( i == TC_spec9t_[i9t] )
+      {
+	TC_getCpFcnP9t(t, i9t, &cpi[i]) ; i9t++ ;
+        continue ;
+      }
+    }
+
     ipol = 0 ;
     if (t > TC_Tmi_[i]) ipol = 1 ;
     icpst = i*7*2+ipol*7 ;
@@ -1058,9 +1090,18 @@ int TC_getCpSpecMsPFcn(double t,double *cpi)
 int TC_getCpSpecMs1PFcn(double t, int i, double *cpi) 
 {
 
-  int ipol ;
+  int ipol, icpst, i9t ;
 
-  int icpst ;
+  if ( TC_nNASA9coef_>0 )
+  {
+    for ( i9t=0; i9t<TC_nNASA9coef_; i9t++ )
+      if ( i == TC_spec9t_[i9t] )
+      {
+        TC_getCpFcnP9t(t, i9t, cpi) ;
+        return ( 0 ) ;
+      }
+  }
+
   ipol = 0 ;
   if (t > TC_Tmi_[i]) ipol = 1 ;
   icpst = i*7*2+ipol*7 ;
@@ -1119,16 +1160,27 @@ int TC_getHspecMsFcn(double t,double *hi)
 int TC_getHspecMlFcn(double t,double *hi) 
 {
 
-  int i, ipol ;
+  int i, ipol, i9t ;
   double one2, one3, one4, one5 ;
 
   one2 = 1.0/2.0 ;
   one3 = 1.0/3.0 ;
   one4 = 1.0/4.0 ;
   one5 = 1.0/5.0 ;
+  i9t = 0 ;
   for ( i = 0 ; i < TC_Nspec_ ; i++ )
   {
     int icpst ;
+
+    if ( i9t < TC_nNASA9coef_ )
+    {
+      if ( i == TC_spec9t_[i9t] )
+      {
+	TC_getHspecFcn9t(t, i9t, &hi[i]) ; i9t++ ;
+        continue ;
+      }
+    }
+
     ipol = 0 ;
     if (t > TC_Tmi_[i]) ipol = 1 ;
     icpst = i*7*2+ipol*7 ;
@@ -1180,5 +1232,100 @@ int TC_getHspecMlTab(double t1,double *hi)
 
   return ( ans ) ;
 
+}
+/*
+ */
+int TC_getCpFcn9t(double t, int icnt, double *cpi) 
+{
+  int i, ipol, ist, irng ;
+  
+  ist = icnt*NTH9RNGMAX;
+  if ( ( t <  TC_spec9trng_[ist*2] ) ||
+       ( t >  TC_spec9trng_[ist*2+2*TC_spec9nrng_[icnt]-1]) )
+  {
+    printf("Error: temperature outside the range for species %d\n",TC_spec9t_[icnt]) ;
+    fflush(stdout); 
+    return (-1) ;
+  } 
+
+  /* determine range */
+  irng = 0;
+  while ( t>TC_spec9trng_[ist*2+2*irng+1] ) irng++ ;
+  
+  ist = (ist+irng)*9 ;
+  (*cpi) = (TC_spec9coefs_[ist]/t+TC_spec9coefs_[ist+1])/t ;
+  (*cpi)+= TC_spec9coefs_[ist+2]+t*(TC_spec9coefs_[ist+3]+
+                                    t*(TC_spec9coefs_[ist+4]+
+                                       t*(TC_spec9coefs_[ist+5]+
+                                          t*TC_spec9coefs_[ist+6]
+                                         )
+                                      )
+                                  ) ;
+
+  return ( 0 ) ;
+  
+}
+
+int TC_getCpFcnP9t(double t, int icnt, double *cpi) 
+{
+  int i, ipol, ist, irng ;
+  
+  ist = icnt*NTH9RNGMAX;
+  if ( ( t <  TC_spec9trng_[ist*2] ) ||
+       ( t >  TC_spec9trng_[ist*2+2*TC_spec9nrng_[icnt]-1]) )
+  {
+    printf("Error: temperature outside the range for species %d\n",TC_spec9t_[icnt]) ;
+    fflush(stdout); 
+    return (-1) ;
+  } 
+
+  /* determine range */
+  irng = 0;
+  while ( t>TC_spec9trng_[ist*2+2*irng+1] ) irng++ ;
+  
+  ist = (ist+irng)*9 ;
+  (*cpi) = (-2.0*TC_spec9coefs_[ist]/t-TC_spec9coefs_[ist+1])/(t*t) ;
+  (*cpi)+= TC_spec9coefs_[ist+3]+t*(TC_spec9coefs_[ist+4]/2.0 +
+                                    t*(TC_spec9coefs_[ist+5]/3.0 +
+                                       t*TC_spec9coefs_[ist+6]/4.0
+                                      )
+				   ) ;
+
+  return ( 0 ) ;
+  
+}
+
+int TC_getHspecFcn9t(double t, int icnt, double *hi) 
+{
+  int i, ipol, ist, irng ;
+  
+  ist = icnt*NTH9RNGMAX;
+  if ( ( t <  TC_spec9trng_[ist*2] ) ||
+       ( t >  TC_spec9trng_[ist*2+2*TC_spec9nrng_[icnt]-1]) )
+  {
+    printf("Error: temperature outside the range for species %d\n",TC_spec9t_[icnt]) ;
+    fflush(stdout); 
+    return (-1) ;
+  } 
+
+  /* determine range */
+  irng = 0;
+  while ( t>TC_spec9trng_[ist*2+2*irng+1] ) irng++ ;
+  
+  ist = (ist+irng)*9 ;
+  (*hi) = -TC_spec9coefs_[ist]/t+TC_spec9coefs_[ist+1]*log(t) ;
+  (*hi)+= t*(TC_spec9coefs_[ist+2] +
+             t*(TC_spec9coefs_[ist+3]/2.0 +
+                t*(TC_spec9coefs_[ist+4]/3.0 +
+                   t*(TC_spec9coefs_[ist+5]/4.0 +
+                      t*TC_spec9coefs_[ist+6]/5.0
+		     )
+		  )
+	       )
+	    ) ;
+  (*hi)+= TC_spec9coefs_[ist+7] ;
+
+  return ( 0 ) ;
+  
 }
 

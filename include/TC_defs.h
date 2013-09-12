@@ -81,6 +81,10 @@ static int TC_electrIndx_    ;
  *  \ingroup nospec
     \brief # of ion species excluding the electron species */
 static int TC_nIonEspec_     ;
+/** \var static int TC_nNASA9coef_
+ *  \ingroup nospec
+    \brief # of species with 9-term NASA polynomial fits */
+static int TC_nNASA9coef_    ;
 
 /** \var static int TC_Nreac_
  *  \ingroup noreac
@@ -179,6 +183,10 @@ static int *TC_sPhase_  ;
 static double *TC_Tlo_,*TC_Tmi_,*TC_Thi_ ; 
 static double *TC_cppol_ ;
   
+/* temperature limits for NASA polynomials and their coefficients */
+static int *TC_spec9t_, *TC_spec9nrng_ ; 
+static double *TC_spec9trng_, *TC_spec9coefs_ ;
+
 /* list of non-electron ion species */
 static int *TC_sNion_ ; 
   
@@ -242,6 +250,10 @@ static double *TC_kfortab, *TC_krevtab, *TC_kforPtab, *TC_krevPtab ;
 
 /* thermodynamic pressure */
 static double TC_pressure_, TC_prescgs_ ;
+
+/* density */
+static double TC_rho_, TC_rhocgs_ ;
+static int TC_rhoset_ ;
 
 /* universal gas constant */
 static double TC_Runiv_, TC_Rcal_, TC_Rcgs_ ;
@@ -370,6 +382,10 @@ int TC_getHspecMsFcn(double t ,double *hi) ;
 int TC_getHspecMsTab(double t1,double *hi) ;
 int TC_getHspecMlFcn(double t ,double *hi) ;
 int TC_getHspecMlTab(double t1,double *hi) ;
+
+int TC_getCpFcn9t (double t, int icnt, double *cpi) ;
+int TC_getCpFcnP9t(double t, int icnt, double *cpi) ;
+int TC_getHspecFcn9t(double t, int icnt, double *hi) ;
 
 /* other defs */
 #define TMAX  3500.0

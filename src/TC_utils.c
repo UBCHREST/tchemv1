@@ -11,16 +11,26 @@ static double fastIntPow(double val, int exponent)
 {
   switch(exponent)
   {
-  case 1:
-    return ( val );
-  case 2:
-    return ( val*val );
-  case 0:
-    return ( 1.0 );
-  case 3:
-    return ( val*val*val );
-  default:
-    return ( pow(val,exponent) );
+    case 0:
+      return ( 1.0 );
+    case 1:
+      return ( val );
+    case 2:
+      return ( val*val );
+    case 3:
+      return ( val*val*val );
+    case 4:
+      return ( val*val*val*val );
+    case 5:
+      return ( val*val*val*val*val );
+    case -1:
+      return ( 1.0/val );
+    case -2:
+      return ( 1.0/(val*val) );
+    case -3:
+      return ( 1.0/(val*val*val) );
+    default:
+      return ( pow(val,exponent) );
   }
 }
 

@@ -24,6 +24,15 @@ double doIgn(int getIgnDel, double tsta, double *tEnd, double *deltat, double de
 
   t    = tsta ;
   iter = 0    ;
+
+  /* Re-initialize cvode */
+  cvflag = CVodeReInit(cvode_mem, tsta, y0 );
+  Check_CVflag(&cvflag, "CVodeReInit", 1) ;
+  cvflag = CVodeSVtolerances(cvode_mem, relT, absT);
+  Check_CVflag(&cvflag, "CVodeSVtolerances", 1) ;
+  cvflag = CVodeSetStopTime(cvode_mem, *tEnd);
+  Check_CVflag(&cvflag, "CVodeSetStopTime", 1) ;
+
   while ( ( t < (*tEnd) ) && (iter < (*NiterMax) ) )
   {
     /* call cvode */
@@ -36,7 +45,9 @@ double doIgn(int getIgnDel, double tsta, double *tEnd, double *deltat, double de
       int rootsfound[1] ;
       int flagroot = CVodeGetRootInfo(cvode_mem, rootsfound);
       Check_CVflag(&flagroot, "CVodeGetRootInfo", 1) ;
+#ifdef VERBOSE
       printf("Found root : %20.12e\n",tret);
+#endif
       time_id1 = tret ;
       if ( getIgnDel == 1 ) { *tEnd = tret ; (*NiterMax) = iter ; return ( time_id1 ) ; }
     }
@@ -65,7 +76,9 @@ double doIgn(int getIgnDel, double tsta, double *tEnd, double *deltat, double de
 #ifndef NO_OUTPUT
     /* output solution */
     if ( iter % oFreq == 0 )
+    {
       Output(1, iter, t, *deltat, y0, scal) ;
+    }
 #endif
 
     /* re-calculate absolute tolerances based on recent solution */

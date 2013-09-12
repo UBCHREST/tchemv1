@@ -687,6 +687,7 @@ sundials_install_dir
 dvode_install_dir
 documentation_dir
 example_dir
+os_name
 LIBOBJS
 LTLIBOBJS'
 ac_subst_files=''
@@ -3264,7 +3265,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 fi
 
@@ -3285,7 +3286,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 fi
 
@@ -5298,6 +5299,10 @@ echo "$as_me: error:  Could not find \"$with_dvode_dir\"  " >&2;}
      ;;
 esac
 
+## We need to also find the OS name since the
+## makefiles are somewhat dependent on the OS
+os_name=`uname -s`
+
 #--------------Substitution starts here-----------------
 cc_compiler=$CC
 cpp_compiler=$CXX
@@ -5305,6 +5310,7 @@ fort_compiler=$F77
 doxygen=$DOXY
 sundials_install_dir=$with_sundials_dir
 dvode_install_dir=$with_dvode_dir
+
 
 
 
@@ -6019,11 +6025,12 @@ sundials_install_dir!$sundials_install_dir$ac_delim
 dvode_install_dir!$dvode_install_dir$ac_delim
 documentation_dir!$documentation_dir$ac_delim
 example_dir!$example_dir$ac_delim
+os_name!$os_name$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 76; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 77; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

@@ -47,6 +47,7 @@ in this software.
 #include "TC_src.c"
 #include "TC_thermo.c"
 #include "TC_utils.c"
+#include "TC_jac.c"
 
 #include "TC_for.c"
 

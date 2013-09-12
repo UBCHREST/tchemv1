@@ -20,7 +20,7 @@ set label "H_2O"  at graph 0.80,0.52 font "Times,18"
 set label "CO_2"  at graph 0.80,0.42 font "Times,18"
 set label "CO"    at graph 0.80,0.16 font "Times,18"
 set term postscript eps color enhanced
-set output "gri3_specMaj.eps"
+set output "specMaj.eps"
 set lmargin 10 
 set rmargin 3 
 set tmargin 2 
@@ -61,7 +61,7 @@ set bmargin 4
 #set arrow 2 from graph 0.82,0.50 to graph 0.68,0.42 lt -1
 set term postscript eps color enhanced
 set xtics 1.1008,0.00003
-set output "gri3_specMin.eps"
+set output "specMin.eps"
 p [1.1008:1.10088] [0:1.1e-3] \
  'ys.out' u 1:($13*20)  w l ls 1, \
  'ys.out' u 1:($19*10)  w l ls 2, \

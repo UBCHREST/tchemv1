@@ -1,0 +1,18 @@
+pfac          10
+NiterMax      2000000
+oFreq         10
+deltat        1.e-10
+deltatMax     1.e-3
+tEnd          2.0
+Tini          1000.0
+Temp_id       1500.0
+deltaTemp     1.0
+mech          chem.inp
+thermo        therm.dat
+withTab       0
+getIgnDel     1
+spec IC8H18   0.0164837326409
+spec O2       0.206046658012
+spec N2       0.767929501554
+spec AR       0.00954010779338
+END

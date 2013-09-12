@@ -11,6 +11,7 @@ mech       chem.inp
 thermo     therm.dat
 withTab    0
 getIgnDel  0
+getSens    0
 spec       CH4   0.0948178320887
 spec       O2    0.189635664177
 spec       N2    0.706766236705

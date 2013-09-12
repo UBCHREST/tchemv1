@@ -830,7 +830,7 @@ int TC_getgk(double t1,double t_1, double tln)
 int TC_getgkFcn(double t1,double t_1, double tln)
 {
   
-  int i ;
+  int i, i9t ;
   double t2, t3, t4 ;
   t2  = t1*t1 ;
   t3  = t2*t1 ;
@@ -840,10 +840,21 @@ int TC_getgkFcn(double t1,double t_1, double tln)
   t3 = t3 / 12.0 ;
   t4 = t4 / 20.0 ;
 
+  i9t = 0 ;
   for ( i = 0 ; i < TC_Nspec_ ; i++ )
   {
 
     int ipol, icpst ;
+
+    if ( i9t < TC_nNASA9coef_ )
+    {
+      if ( i == TC_spec9t_[i9t] )
+      {
+	TC_getgkFcn9t(t1, i9t, &TC_gk[i]) ; i9t++ ;
+        continue ;
+      }
+    }
+
     ipol = 0 ; if (t1 > TC_Tmi_[i]) ipol = 1 ;
     icpst = i*7*2+ipol*7 ;
 
@@ -862,6 +873,41 @@ int TC_getgkFcn(double t1,double t_1, double tln)
   
   return ( 0 ) ;
 
+}
+
+int TC_getgkFcn9t(double t, int icnt, double *gki) 
+{
+  int ist, irng ;
+  double pfac[4] = {0.5,1.0/6.0,1.0/12.0,1.0/20.0} ;
+  
+  ist = icnt*NTH9RNGMAX;
+  if ( ( t <  TC_spec9trng_[ist*2] ) ||
+       ( t >  TC_spec9trng_[ist*2+2*TC_spec9nrng_[icnt]-1]) )
+  {
+    printf("Error: temperature outside the range for species %d\n",TC_spec9t_[icnt]) ;
+    fflush(stdout); 
+    return (-1) ;
+  } 
+
+  /* determine range */
+  irng = 0;
+  while ( t>TC_spec9trng_[ist*2+2*irng+1] ) irng++ ;
+  
+  ist = (ist+irng)*9 ;
+  (*gki) = TC_spec9coefs_[ist+8]-TC_spec9coefs_[ist+7]/t-log(t) ;
+  (*gki) += TC_spec9coefs_[ist]*0.5/(t*t);
+  (*gki) -= TC_spec9coefs_[ist+1]*(log(t)+1.0)/t;
+  (*gki) += TC_spec9coefs_[ist+2]*(log(t)-1.0);
+  (*gki) += t*(TC_spec9coefs_[ist+3]*pfac[0] + 
+	       t*(TC_spec9coefs_[ist+4]*pfac[1] + 
+                  t*(TC_spec9coefs_[ist+5]*pfac[2] + 
+		     t*TC_spec9coefs_[ist+6]*pfac[3]
+                    )
+		 )
+	       ) ; 
+
+  return ( 0 ) ;
+  
 }
 
 int TC_getgkTab(double t1)
@@ -900,7 +946,7 @@ int TC_getgkp(double t1,double t_1, double tln)
 int TC_getgkpFcn(double t1,double t_1, double tln)
 {
   
-  int i ;
+  int i, i9t ;
   double t2, t3, one3 ;
   t2  = t1*t1 ;
   t3  = t2*t1 ;
@@ -909,10 +955,21 @@ int TC_getgkpFcn(double t1,double t_1, double tln)
   t2 = t2 / 4.0 ;
   t3 = t3 / 5.0 ;
 
+  i9t = 0 ;
   for ( i = 0 ; i < TC_Nspec_ ; i++ )
   {
 
     int ipol, icpst ;
+
+    if ( i9t < TC_nNASA9coef_ )
+    {
+      if ( i == TC_spec9t_[i9t] )
+      {
+	TC_getgkpFcn9t(t1, i9t, &TC_gkp[i]) ; i9t++ ;
+        continue ;
+      }
+    }
+    
     ipol = 0 ; if (t1 > TC_Tmi_[i]) ipol = 1 ;
     icpst = i*7*2+ipol*7 ;
 
@@ -928,6 +985,39 @@ int TC_getgkpFcn(double t1,double t_1, double tln)
   /* done computing gkp=d(gk)/dT */
   return ( 0 ) ;
 
+}
+
+int TC_getgkpFcn9t(double t, int icnt, double *gki) 
+{
+  int ist, irng ;
+  double pfac[4] = {0.5,1.0/3.0,1.0/4.0,1.0/5.0} ;
+  
+  ist = icnt*NTH9RNGMAX;
+  if ( ( t <  TC_spec9trng_[ist*2] ) ||
+       ( t >  TC_spec9trng_[ist*2+2*TC_spec9nrng_[icnt]-1]) )
+  {
+    printf("Error: temperature outside the range for species %d\n",TC_spec9t_[icnt]) ;
+    fflush(stdout); 
+    return (-1) ;
+  } 
+
+  /* determine range */
+  irng = 0;
+  while ( t>TC_spec9trng_[ist*2+2*irng+1] ) irng++ ;
+  
+  ist = (ist+irng)*9 ;
+  (*gki) = (TC_spec9coefs_[ist+7]/t-1.0)/t ;
+  (*gki) -= TC_spec9coefs_[ist]/(t*t*t);
+  (*gki) += TC_spec9coefs_[ist+1]*log(t)/(t*t);
+  (*gki) += TC_spec9coefs_[ist+2]/t;
+  (*gki) += TC_spec9coefs_[ist+3]*pfac[0] + 
+             t*(TC_spec9coefs_[ist+4]*pfac[1] + 
+               t*(TC_spec9coefs_[ist+5]*pfac[2] + 
+                  t*TC_spec9coefs_[ist+6]*pfac[3]
+                 )
+		) ;
+  return ( 0 ) ;
+  
 }
 
 int TC_getgkpTab(double t1)
@@ -1510,12 +1600,23 @@ int TC_getRateofProgDer(double *concX, int ireac, int ispec, double *qfr)
         double niup ;
         kspec = TC_reacSidx_[indx] ;
         niup  = fabs(TC_reacRealNuki_[indxR]) ;
-        if ( ispec == kspec )
-        {
-          if ( niup != 1.0 ) qfr[0] *= niup*pow(concX[kspec],niup-1) ;
-        }
-        else
-          qfr[0] *= pow(concX[kspec],niup) ;
+	if ( concX[kspec] > 0.0 ) {
+	  if ( ispec == kspec ) {
+	    if ( niup != 1.0 ) 
+	      qfr[0] *= niup*pow(concX[kspec],niup-1) ;
+	  }
+	  else
+	    qfr[0] *= pow(concX[kspec],niup) ;
+	}
+	else {
+	  if ( ispec == kspec ) {
+	    if ( niup != 1.0 ) 
+	      qfr[0] *= niup*pow(1.e-20,niup-1) ;
+	  }
+	  else
+	    qfr[0] *= pow(1.e-20,niup) ;
+	}
+	  
         indx++ ;
         indxR++ ;
       } /* Done loop over all reactants */
@@ -1531,12 +1632,22 @@ int TC_getRateofProgDer(double *concX, int ireac, int ispec, double *qfr)
           double nius ;
           kspec = TC_reacSidx_[indx] ;
           nius  = TC_reacRealNuki_[indxR] ;
-          if ( ispec == kspec )
-          {
-            if ( nius != 1.0 ) qfr[1] *= nius*pow(concX[kspec],nius-1) ;
-          }
-          else
-            qfr[1] *= pow(concX[kspec],nius) ;
+	  if ( concX[kspec] > 0.0 ) {
+	    if ( ispec == kspec ) {
+	      if ( nius != 1.0 ) 
+		qfr[1] *= nius*pow(concX[kspec],nius-1) ;
+	    }
+	    else
+	      qfr[1] *= pow(concX[kspec],nius) ;
+	  }
+          else {
+	    if ( ispec == kspec ) {
+	      if ( nius != 1.0 ) 
+		qfr[1] *= nius*pow(1.e-20,nius-1) ;
+	    }
+	    else
+	      qfr[1] *= pow(1.e-20,nius) ;
+	  }
           indx++ ;
           indxR++ ;
         } /* Done loop over all products */
@@ -1560,11 +1671,20 @@ int TC_getRateofProgDer(double *concX, int ireac, int ispec, double *qfr)
          
           if ( ispec == kspec )
 	  {
-            if (TC_specAOval_[indx] != 1.0)
-              qfr[0] *= TC_specAOval_[indx]*pow(concX[kspec],TC_specAOval_[indx]-1.0);
+	    if ( concX[kspec] > 0.0 ) {
+	      if (TC_specAOval_[indx] != 1.0)
+		qfr[0] *= TC_specAOval_[indx]*pow(concX[kspec],TC_specAOval_[indx]-1.0);
+	    } else {
+	      if (TC_specAOval_[indx] != 1.0)
+		qfr[0] *= TC_specAOval_[indx]*pow(1.e-20,TC_specAOval_[indx]-1.0);
+	    }
 	  }
-	  else
-            qfr[0] *= pow(concX[kspec],TC_specAOval_[indx]);
+	  else {
+	    if ( concX[kspec] > 0.0 ) 
+	      qfr[0] *= pow(concX[kspec],TC_specAOval_[indx]);
+	    else
+	      qfr[0] *= pow(1.e-20,TC_specAOval_[indx]);
+	  }
 
         }
         else if (TC_specAOidx_[indx]>0) 
@@ -1572,11 +1692,21 @@ int TC_getRateofProgDer(double *concX, int ireac, int ispec, double *qfr)
           kspec = TC_specAOidx_[indx]-1 ;
           if ( ispec == kspec )
 	  {
-            if (TC_specAOval_[indx] != 1.0)
-              qfr[1] *= TC_specAOval_[indx]*pow(concX[kspec],TC_specAOval_[indx]-1.0) ;
+	    if ( concX[kspec] > 0.0 ) {
+	      if (TC_specAOval_[indx] != 1.0)
+		qfr[1] *= TC_specAOval_[indx]*pow(concX[kspec],TC_specAOval_[indx]-1.0) ;
+	    } else {
+	      if (TC_specAOval_[indx] != 1.0)
+		qfr[1] *= TC_specAOval_[indx]*pow(1.e-20,TC_specAOval_[indx]-1.0) ;
+	    }
 	  }
-          else
-            qfr[1] *= pow(concX[kspec],TC_specAOval_[indx]) ;
+          else {
+	    if ( concX[kspec] > 0.0 ) {
+	      qfr[1] *= pow(concX[kspec],TC_specAOval_[indx]) ;
+	    } else {
+	      qfr[1] *= pow(1.e-20,TC_specAOval_[indx]) ;
+	    }
+	  }
         }
       }
     } /* done if arbitrary order reaction */

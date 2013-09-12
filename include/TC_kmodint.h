@@ -2,6 +2,7 @@
 #define TCkmodintHSeen
 
 #include "copyright.h"
+#include "TC_params.h"
 
 /* Length of filenames */
 #define lenfile 100
@@ -56,6 +57,10 @@ typedef struct
   int    elemcontent[NUMBEROFELEMINSPEC] ;
   double nasapoltemp[3]                  ;
   double nasapolcoefs[14]                ;
+  /* new NASA polynomials */
+  int    Nth9rng                         ;
+  double Nth9Temp[2*NTH9RNGMAX]          ;
+  double Nth9coefs[9*NTH9RNGMAX]         ;
 } species ;
 
 /** 
@@ -128,113 +133,112 @@ typedef struct
                            Elements' functions
    ------------------------------------------------------------------------- */
 
-void setperiodictable ( elemtable *periodictable,int *Natoms,int iflag) ;
+void TCKMI_setperiodictable ( elemtable *periodictable,int *Natoms,int iflag) ;
 
-void checkeleminlist (char *elemname,element *listelem,int *Nelem, int *ipos) ;
+void TCKMI_checkeleminlist (char *elemname,element *listelem,int *Nelem, int *ipos) ;
 
-int  getelements (char *linein, char *singleword,element **listelemaddr,
+int  TCKMI_getelements (char *linein, char *singleword,element **listelemaddr,
                   int *Nelem, int *Nelemmax, int *iread, int *ierror) ;
 
-void resetelemdata (element *currentelem) ;
+void TCKMI_resetelemdata (element *currentelem) ;
 
-int  setelementmass (element *listelem,int *Nelem, elemtable *periodictable,int *Natoms, 
+int  TCKMI_setelementmass (element *listelem,int *Nelem, elemtable *periodictable,int *Natoms, 
                      int *ierror) ;
 
 /* -------------------------------------------------------------------------
                            Species' functions
    ------------------------------------------------------------------------- */
 
-int getspecies ( char *linein,char *singleword,species **listspecaddr,
+int TCKMI_getspecies ( char *linein,char *singleword,species **listspecaddr,
                  int *Nspec,int *Nspecmax,int *iread,int *ierror ) ;
 
-void resetspecdata ( species *currentspec ) ;
+void TCKMI_resetspecdata ( species *currentspec ) ;
 
-int setspecmass ( element *listelem,int *Nelem,species *listspec,int *Nspec, 
-                  int *ierror ) ;
+int TCKMI_setspecmass ( element *listelem,int *Nelem,species *listspec,int *Nspec, 
+                        int *ierror ) ;
 
 /* -------------------------------------------------------------------------
                            Thermo functions
    ------------------------------------------------------------------------- */
-int checkthermo(species *listspec,int *Nspec) ;
+int TCKMI_checkthermo(species *listspec,int *Nspec) ;
 
-void checkspecinlist(char *specname,species *listspec,int *Nspec, int *ipos) ;
+void TCKMI_checkspecinlist(char *specname,species *listspec,int *Nspec, int *ipos) ;
 
-int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
+int TCKMI_getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
               element *listelem,int *Nelem,species *listspec,int *Nspec,double *Tglobal,
               int *ithermo,int *iread,int *ierror) ;
 
 /* -------------------------------------------------------------------------
                            Reactions' functions
    ------------------------------------------------------------------------- */
-void resetreacdata(reaction *currentreac, char *aunits, char *eunits) ;
+void TCKMI_resetreacdata(reaction *currentreac, char *aunits, char *eunits) ;
 
-void checkunits (char *linein,char *singleword,char *aunits,char *eunits) ;
+void TCKMI_checkunits (char *linein,char *singleword,char *aunits,char *eunits) ;
 
-int getreacline (char *linein,char *singleword, species *listspec,int *Nspec,
+int TCKMI_getreacline (char *linein,char *singleword, species *listspec,int *Nspec,
                  reaction *listreac,int *Nreac, int *ierror) ;
 
-int getreacauxl (char *linein,char *singleword, species *listspec,int *Nspec,
+int TCKMI_getreacauxl (char *linein,char *singleword, species *listspec,int *Nspec,
                  reaction *listreac, int *Nreac, int *ierror) ;
 
-int getreactions (char *linein,char *singleword, species *listspec,int *Nspec,
+int TCKMI_getreactions (char *linein,char *singleword, species *listspec,int *Nspec,
                   reaction *listreac, int *Nreac, char *aunits,char *eunits,
                   int *ierror) ;
 
-int rescalereac (reaction *listreac,int *Nreac ) ;
+int TCKMI_rescalereac (reaction *listreac,int *Nreac ) ;
 
-int verifyreac (element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_verifyreac (element *listelem,int *Nelem, species *listspec,int *Nspec,
                 reaction *listreac,int *Nreac,int *ierror) ;
 
-int kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
-                 reaction *listreac,int *Nreac,
-                 int *nIonEspec,int *electrIndx,int *nIonSpec,int *maxSpecInReac,int *maxTbInReac,int *maxOrdPar,
-                 int *nFallPar,int *maxTpRange,int *nLtReac,int *nRltReac,int *nFallReac,
-                 int *nThbReac,int *nRevReac,int *nHvReac,int *nTdepReac,int *nJanReac,int *nFit1Reac,
-                 int *nExciReac,int *nMomeReac,int *nXsmiReac,int *nRealNuReac,int *nOrdReac,
-                 int *nNASAinter,int *nCpCoef,int *nNASAfit,int *nArhPar,
-                 int *nLtPar,int *nJanPar,int *nFit1Par) ;
+int TCKMI_kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
+            reaction *listreac,int *Nreac,
+            int *nIonEspec,int *electrIndx,int *nIonSpec,int *maxSpecInReac,int *maxTbInReac,int *maxOrdPar,
+            int *nFallPar,int *maxTpRange,int *nLtReac,int *nRltReac,int *nFallReac,
+            int *nThbReac,int *nRevReac,int *nHvReac,int *nTdepReac,int *nJanReac,int *nFit1Reac,
+            int *nExciReac,int *nMomeReac,int *nXsmiReac,int *nRealNuReac,int *nOrdReac,
+            int *nNASAinter,int *nCpCoef,int *nNASAfit,int *nArhPar,
+            int *nLtPar,int *nJanPar,int *nFit1Par,int *nNASA9coef) ;
 /* -------------------------------------------------------------------------
                            I/O functions
    ------------------------------------------------------------------------- */
-int out_formatted   (element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_outform   (element *listelem,int *Nelem, species *listspec,int *Nspec,
                     reaction *listreac,int *Nreac, char *aunits,char *eunits,
                     FILE *fileascii) ;
-int out_unformatted (element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_outunform (element *listelem,int *Nelem, species *listspec,int *Nspec,
                     reaction *listreac,int *Nreac, char *aunits,char *eunits,
                     FILE *filelist,int *ierror) ;
-int out_mathem      (element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_outmath   (element *listelem,int *Nelem, species *listspec,int *Nspec,
 		    reaction *listreac,int *Nreac, char *aunits,char *eunits)  ;
-
 
 /* -------------------------------------------------------------------------
                            Error functions
    ------------------------------------------------------------------------- */
-void errormsg (int ierror) ;
+void TCKMI_errormsg (int ierror) ;
 
 /* -------------------------------------------------------------------------
                            Character string functions
    ------------------------------------------------------------------------- */
-int elimleads  ( char *linein ) ;
-int elimends   ( char *linein ) ;
-int elimspaces ( char *linein ) ;
-int elimcomm   ( char *linein ) ;
-int tab2space  ( char *linein ) ;
-int extractWordLeft  ( char *linein,char *oneword ) ;
-int extractWordRight ( char *linein,char *oneword ) ;
-int extractWordLeftauxline ( char *linein,char *oneword,char *twoword,
+int TCKMI_elimleads  ( char *linein ) ;
+int TCKMI_elimends   ( char *linein ) ;
+int TCKMI_elimspaces ( char *linein ) ;
+int TCKMI_elimcomm   ( char *linein ) ;
+int TCKMI_tab2space  ( char *linein ) ;
+int TCKMI_extractWordLeft  ( char *linein,char *oneword ) ;
+int TCKMI_extractWordRight ( char *linein,char *oneword ) ;
+int TCKMI_extractWordLeftauxline ( char *linein,char *oneword,char *twoword,
                              int *inum,int *ierror ) ; 
-int extractWordLeftNoslash ( char *linein,char *oneword ) ;
+int TCKMI_extractWordLeftNoslash ( char *linein,char *oneword ) ;
 
-int extractdouble ( char *wordval,double *dvalues,int *inum,int *ierror ) ;
+int TCKMI_extractdouble ( char *wordval,double *dvalues,int *inum,int *ierror ) ;
 
-void wordtoupper ( char *linein,char *oneword,int Npos) ;
+void TCKMI_wordtoupper ( char *linein,char *oneword,int Npos) ;
 
-void cleancharstring ( char *linein,int *len1) ;
+void TCKMI_cleancharstring ( char *linein,int *len1) ;
 
 int charfixespc(char *singleword,int *len1) ;
 
-int checkstrnum ( char *singleword,int *len1,int *ierror) ;
+int TCKMI_checkstrnum ( char *singleword,int *len1,int *ierror) ;
 
-int findnonnum ( char *specname,int *ipos) ;
+int TCKMI_findnonnum ( char *specname,int *ipos) ;
 
 #endif

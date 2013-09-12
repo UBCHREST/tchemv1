@@ -37,8 +37,11 @@ void chemrhs(realtype t, N_Vector y, N_Vector ydot, void *f_data)
   TC_getSrc ( tempNmsfr, Ns+1, rhsvals ) ;
 
   for ( iscal = 0; iscal < Nv ; iscal++)
+  {
     NV_Ith_S(ydot,iscal) = rhsvals[iscal] ;
-
+//    printf("%d: %e\n",iscal,rhsvals[iscal]);
+  }
+//  exit(1);
   return ;
 
 }

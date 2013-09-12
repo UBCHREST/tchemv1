@@ -140,9 +140,21 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "TC_params.h"
 #include "TC_kmodint.h"
 
+#include "TC_getthc9.c"
+
+int TC_7TCoefs = 1, TC_9TCoefs = 0 ;
+char *TCKMI_thf9 = NULL ;
+
+void TC_set7term_()   { TC_7TCoefs = 1 ; return ; }
+void TC_unset7term_() { TC_7TCoefs = 0 ; return ; }
+
+void TC_set9term_()   { TC_9TCoefs = 1 ; return ; }
+void TC_unset9term_() { TC_9TCoefs = 0 ; return ; }
+
+void TC_setthf9_(char *thf9)   { TCKMI_thf9 = thf9 ; return ; }
+void TC_unsetthf9_()           { TCKMI_thf9 = NULL ; return ; }
 
 /* ---------------------------Main function----------------------------- */
 /** 
@@ -189,7 +201,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
   char aunits[lenstr03],eunits[lenstr03] ;
 
   /* File I/O */
-  FILE *mechin,*thermoin,*filelist,*fileascii ;
+  FILE *mechin,*thermoin,*thermoin9,*filelist,*fileascii ;
   char listfile [lenfile],asciifile [lenfile] ;
 
   /* Character strings */
@@ -217,9 +229,9 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
 #endif
 
   /*--------------------Set periodic table--------------------------- */
-  setperiodictable(periodictable,&Natoms,1) ;
+  TCKMI_setperiodictable(periodictable,&Natoms,1) ;
   periodictable = (elemtable*) malloc( Natoms * sizeof(elemtable) ) ;
-  setperiodictable(periodictable,&Natoms,2) ;
+  TCKMI_setperiodictable(periodictable,&Natoms,2) ;
 
   /* ----------Number of elements, species, reactions----------------- */
   Nelem = 0; Nelemmax = nelemalloc ;
@@ -276,7 +288,16 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
     fflush(stdout) ;
     exit(1) ;
   }
-
+  if ( ( TC_9TCoefs == 1 ) && ( TCKMI_thf9 != NULL ) )
+  {
+    thermoin9  = fopen(TCKMI_thf9, "r" ) ;
+    if ( !thermoin )
+    {
+      printf("TC_kmodin() : Could not open %s -> Abort !\n",TCKMI_thf9) ;
+      fflush(stdout) ;
+      exit(1) ;
+    }
+  }
   memset(kwd,0,lenstr03) ;
 
   icline = 0 ;
@@ -296,13 +317,13 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
     printf("Line #%d, String: |%s|, Length: %d \n",icline,linein,strlen(linein)) ;
 #endif
     /* replace tab characters and eliminate comments and leading spaces */
-    cleancharstring(linein,&len1) ;
+    TCKMI_cleancharstring(linein,&len1) ;
 #ifdef DEBUGMSG
     printf("Line #%d, String: |%s|, Length: %d \n",icline,linein,strlen(linein)) ;
 #endif
 
     /* Convert first four characters to upper case */
-    wordtoupper(linein,kwd,MIN(4,len1)) ;
+    TCKMI_wordtoupper(linein,kwd,MIN(4,len1)) ;
 
     /* Set approriate flags */
     iremove = 0 ;
@@ -323,7 +344,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
       /* Found thermo keyword, set remove flag */
       iread = 3 ; iremove = 1 ;
       /* Update atomic weights for all elements */
-      setelementmass(listelem,&Nelem,periodictable,&Natoms,&ierror) ;
+      TCKMI_setelementmass(listelem,&Nelem,periodictable,&Natoms,&ierror) ;
     }
 
     else if ( strncmp(kwd,"REAC",4) == 0 )
@@ -331,11 +352,15 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
       /* Found reactions keyword */
       iread = 4 ; iremove = 1 ;
       /* Update atomic weights for all elements */
-      setelementmass(listelem,&Nelem,periodictable,&Natoms,&ierror) ;
+      TCKMI_setelementmass(listelem,&Nelem,periodictable,&Natoms,&ierror) ;
       /* Get thermodynamic species for all elements */
-      getthermo(linein,singleword,mechin,thermoin,
-                listelem,&Nelem,listspec,&Nspec,Tglobal,
-                &ithermo,&iread,&ierror);
+      if ( TC_7TCoefs == 1 )
+        TCKMI_getthermo(linein,singleword,mechin,thermoin,
+	          listelem,&Nelem,listspec,&Nspec,Tglobal,
+                  &ithermo,&iread,&ierror);
+     if ( TC_9TCoefs == 1 )
+        TCKMI_getthermo9(singleword, thermoin9, listelem, &Nelem, listspec, &Nspec,
+                   &ithermo, &iread, &ierror) ;
     }
 
     else if ( strncmp(kwd,"END",3) == 0 )
@@ -346,21 +371,21 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
 
     else if ( ( iread == 0 ) && ( strlen(linein) > 0 ) )
     {
-      elimleads(linein) ;
+      TCKMI_elimleads(linein) ; 
       if ( strlen(linein) > 0 ) ierror = 9999 ;
     }
 
     if (ierror > 0) 
     {
-      errormsg(ierror) ;
+      TCKMI_errormsg(ierror) ;
       return (ierror)  ;
     }
 
     /* Remove leftmost word if needed */
-    if (iremove == 1) extractWordLeft(linein,singleword) ;
+    if (iremove == 1) TCKMI_extractWordLeft(linein,singleword) ;
 
     if ( (iremove == 1) && (iread==4) ) 
-      checkunits(linein,singleword,aunits,eunits) ;
+      TCKMI_checkunits(linein,singleword,aunits,eunits) ;
 
     /* Route things as approriate */
     if ( iread == 1 ) 
@@ -369,10 +394,10 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
       len1 = strlen(linein) ;
       while ( len1>0 )
       {
-        getelements (linein, singleword, &listelem, &Nelem, &Nelemmax, &iread, &ierror) ;
+        TCKMI_getelements (linein, singleword, &listelem, &Nelem, &Nelemmax, &iread, &ierror) ;
         if (ierror > 0) 
 	{
-	  errormsg(ierror) ;
+	  TCKMI_errormsg(ierror) ;
 	  return ( ierror )  ;
 	}
         len1 = strlen(linein) ;
@@ -385,10 +410,10 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
       len1 = strlen(linein) ;
       while (len1 > 0)
       {
-        getspecies(linein, singleword, &listspec, &Nspec, &Nspecmax, &iread, &ierror) ;
+        TCKMI_getspecies(linein, singleword, &listspec, &Nspec, &Nspecmax, &iread, &ierror) ;
         if (ierror > 0) 
 	{
-	  errormsg(ierror) ;
+	  TCKMI_errormsg(ierror) ;
 	  return ( ierror )  ;
 	}
         len1 = strlen(linein) ;
@@ -397,7 +422,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
 
     else if ( iread == 3 ) 
       /* In the thermo mode */
-      getthermo(linein, singleword, mechin, thermoin, listelem, &Nelem, listspec, &Nspec, 
+      TCKMI_getthermo(linein, singleword, mechin, thermoin, listelem, &Nelem, listspec, &Nspec, 
                 Tglobal, &ithermo, &iread, &ierror) ;
 
     else if ( iread == 4 ) 
@@ -413,7 +438,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
           ierror = 800 ;
           break ;
 	}
-        cleancharstring(linein2,&len2) ;
+        TCKMI_cleancharstring(linein2,&len2) ;
         if (len1+len2 > lenstr01) 
         {
           ierror = 810 ;
@@ -427,7 +452,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
       /* loop until there is nothing to interpret on the current line */
       while (len1>0)
       {
-        getreactions(linein,singleword,listspec,&Nspec,listreac,&Nreac,
+        TCKMI_getreactions(linein,singleword,listspec,&Nspec,listreac,&Nreac,
                      aunits,eunits,&ierror) ;
         if (ierror>0) break ;
         len1 = strlen(linein) ;
@@ -444,7 +469,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
 
     if (ierror > 0) 
     {
-      errormsg(ierror) ;
+      TCKMI_errormsg(ierror) ;
       return ( ierror )  ;
       break            ;
     }
@@ -459,47 +484,51 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
   {
     /* Input file has no reaction, make sure that all elements and 
        species have everything defined */
-    setelementmass(listelem,&Nelem,periodictable,&Natoms,&ierror) ;
+    TCKMI_setelementmass(listelem,&Nelem,periodictable,&Natoms,&ierror) ;
     iread   = 4 ; 
-    getthermo(linein,singleword,mechin,thermoin,
-              listelem,&Nelem,listspec,&Nspec,Tglobal,
-              &ithermo,&iread,&ierror);
+    if ( TC_7TCoefs == 1 )
+      TCKMI_getthermo(linein,singleword,mechin,thermoin,
+                listelem,&Nelem,listspec,&Nspec,Tglobal,
+                &ithermo,&iread,&ierror);
+    if ( TC_9TCoefs == 1 )
+      TCKMI_getthermo9(singleword, thermoin9, listelem, &Nelem, listspec, &Nspec,
+                 &ithermo, &iread, &ierror) ;
     if (ierror > 0) 
     {
-      errormsg(ierror) ;
+      TCKMI_errormsg(ierror) ;
       return ( ierror )  ;
     }
 
   }
 
   /* Verify completness and correctness for each reaction */
-  verifyreac(listelem,&Nelem,listspec,&Nspec,listreac,&Nreac,&ierror) ;
+  TCKMI_verifyreac(listelem,&Nelem,listspec,&Nspec,listreac,&Nreac,&ierror) ;
   if (ierror > 0) 
   {
-    errormsg(ierror) ;
+    TCKMI_errormsg(ierror) ;
     return ( ierror )  ;
   }
 
   /* Output to ascii file (formatted) */
-  out_formatted(listelem, &Nelem, listspec, &Nspec,listreac, &Nreac,
+  TCKMI_outform(listelem, &Nelem, listspec, &Nspec,listreac, &Nreac,
                  aunits, eunits, fileascii) ;
 
   /* Rescale pre-exponential factors and activation energies (if needed) */
-  rescalereac( listreac, &Nreac ) ;
+  TCKMI_rescalereac( listreac, &Nreac ) ;
 
   /* Output to unformatted ascii file */
   if ( ierror == 0 )
-    out_unformatted(listelem, &Nelem, listspec, &Nspec,listreac, &Nreac,
+    TCKMI_outunform(listelem, &Nelem, listspec, &Nspec,listreac, &Nreac,
                  aunits, eunits, filelist, &ierror) ;
   if (ierror > 0) 
   {
-    errormsg(ierror) ;
+    TCKMI_errormsg(ierror) ;
     return ( ierror )  ;
   }
 
   /* Output to mathematica friendly file */
   if ( ierror == 0 )
-    out_mathem(listelem, &Nelem, listspec, &Nspec,listreac, &Nreac,
+    TCKMI_outmath(listelem, &Nelem, listspec, &Nspec,listreac, &Nreac,
                  aunits, eunits) ;
 
   /* Close all files */
@@ -536,7 +565,7 @@ int TC_kmodint_(char *mechfile,int *lmech,char *thermofile,int *lthrm)
  *      </ol>
  *    </ul>
  */
-void setperiodictable(elemtable *periodictable,int *Natoms,int iflag)
+void TCKMI_setperiodictable(elemtable *periodictable,int *Natoms,int iflag)
 {
 
   FILE *pertabdata=0;
@@ -608,7 +637,7 @@ void setperiodictable(elemtable *periodictable,int *Natoms,int iflag)
  *  - the index goes from 0 to (Nelem-1);
  *  - the value of Nelem is returned if the element is not found
  */
-void checkeleminlist(char *elemname,element *listelem,int *Nelem, int *ipos)
+void TCKMI_checkeleminlist(char *elemname,element *listelem,int *Nelem, int *ipos)
 {
 
   int i ;
@@ -631,7 +660,7 @@ void checkeleminlist(char *elemname,element *listelem,int *Nelem, int *ipos)
  * \brief Interprets a character string containing element names and 
  *  possible their mass.
  */
-int getelements(char *linein, char *singleword,element **listelemaddr,
+int TCKMI_getelements(char *linein, char *singleword,element **listelemaddr,
                 int *Nelem, int *Nelemmax,int *iread, int *ierror)
 {
 
@@ -641,12 +670,12 @@ int getelements(char *linein, char *singleword,element **listelemaddr,
   if (*ierror > 0) return (1) ;
 
   /* Eliminate leading and ending spaces */
-  elimleads(linein);
-  elimends (linein);
+  TCKMI_elimleads(linein);
+  TCKMI_elimends (linein);
   lenstr = strlen(linein) ;
 
 #ifdef DEBUGMSG
-  printf("In getelements :\n") ;
+  printf("In TCKMI_getelements :\n") ;
   printf("              ->%s\n",linein) ;
 #endif
 
@@ -686,7 +715,7 @@ int getelements(char *linein, char *singleword,element **listelemaddr,
 #ifdef DEBUGMSG
       printf("-->:: %s\n",singleword) ;
       printf("-->:: %s\n",linein) ;
-      printf("-->:: %e\n",listelem[*Nelem].mass) ;
+      printf("-->:: %e\n",(*listelemaddr)[*Nelem-1].mass) ;
 #endif
 
     }/* end if found "/" */  
@@ -695,11 +724,11 @@ int getelements(char *linein, char *singleword,element **listelemaddr,
 
       int isduplicate ;
       /* Possible found element name */
-      extractWordLeft(linein,singleword) ;
+      TCKMI_extractWordLeft(linein,singleword) ;
 
 #ifdef DEBUGMSG
-      printf("getelements:singleword: %s %d\n",linein,strlen(linein)) ;
-      printf("getelements:singleword: %s %d %d\n",singleword,strlen(singleword),*Nelem) ;
+      printf("TCKMI_getelements:singleword: %s %d\n",linein,strlen(linein)) ;
+      printf("TCKMI_getelements:singleword: %s %d %d\n",singleword,strlen(singleword),*Nelem) ;
 #endif
 
       /* Check is elements has more than two characters in which case
@@ -726,7 +755,7 @@ int getelements(char *linein, char *singleword,element **listelemaddr,
         singleword[i] = toupper(singleword[i]);
 
 #ifdef DEBUGMSG
-      printf("getelements:singleword: %d\n",strlen(singleword)) ; 
+      printf("TCKMI_getelements:singleword: %d\n",strlen(singleword)) ; 
 #endif
 
       /* First, check if the element is a duplicate */
@@ -745,7 +774,7 @@ int getelements(char *linein, char *singleword,element **listelemaddr,
         if (isduplicate == 0) 
         {
           strcpy((*listelemaddr)[*Nelem].name,singleword) ;
-          resetelemdata(&(*listelemaddr)[*Nelem]) ;
+          TCKMI_resetelemdata(&(*listelemaddr)[*Nelem]) ;
           *Nelem += 1 ;
         } 
 
@@ -777,7 +806,7 @@ int getelements(char *linein, char *singleword,element **listelemaddr,
  * \brief Reset data for an element
  */
 
-void resetelemdata(element *currentelem)
+void TCKMI_resetelemdata(element *currentelem)
 {
   currentelem[0].hasmass = 0   ;  /* Flag for element mass initialization */
   currentelem[0].mass    = 0.0 ;  /* Element mass */
@@ -791,7 +820,7 @@ void resetelemdata(element *currentelem)
  * \brief Set the mass for all entries in the list of elements 
  *   based on the values found in the periodic table
 */
-int setelementmass(element *listelem,int *Nelem,
+int TCKMI_setelementmass(element *listelem,int *Nelem,
                    elemtable *periodictable,int *Natoms, 
                    int *ierror)
 {
@@ -839,7 +868,7 @@ int setelementmass(element *listelem,int *Nelem,
 /**
  * \brief Interprets a character string containing species names
 */
-int getspecies(char *linein,char *singleword,species **listspecaddr,
+int TCKMI_getspecies(char *linein,char *singleword,species **listspecaddr,
                int *Nspec,int *Nspecmax,int *iread,int *ierror)
 {
 
@@ -850,13 +879,13 @@ int getspecies(char *linein,char *singleword,species **listspecaddr,
 
   /* Retrieve species names from a line of characters */
   /* Eliminate leading and ending spaces */
-  elimleads( linein ) ;
-  elimends ( linein ) ;
+  TCKMI_elimleads( linein ) ;
+  TCKMI_elimends ( linein ) ;
   lenstr = strlen(linein) ;
 
 #ifdef DEBUGMSG
-    printf("In getspecies :\n") ;
-    printf("              ->%s\n",linein) ;
+    printf("In TCKMI_getspecies :\n") ;
+    printf("          ->%s\n",linein) ;
 #endif
 
   while ( lenstr > 0 )
@@ -870,7 +899,7 @@ int getspecies(char *linein,char *singleword,species **listspecaddr,
     }
 
     /* Possible found species name, check if duplicate */
-    extractWordLeft(linein,singleword) ;
+    TCKMI_extractWordLeft(linein,singleword) ;
 
     if ( strlen( singleword ) > LENGTHOFSPECNAME ) 
     {
@@ -879,7 +908,7 @@ int getspecies(char *linein,char *singleword,species **listspecaddr,
     }
 
     len1 = strlen(singleword);
-    wordtoupper(singleword,singleword,len1);
+    TCKMI_wordtoupper(singleword,singleword,len1);
 
     /* Check if duplicate */
     isduplicate = 0;
@@ -897,13 +926,13 @@ int getspecies(char *linein,char *singleword,species **listspecaddr,
     /* Insert element name */
     if ( isduplicate == 0 ) 
     {
-      /* resetspecdata(&listspec[*Nspec]) ; */
+      /* TCKMI_resetspecdata(&listspec[*Nspec]) ; */
       strcpy((*listspecaddr)[*Nspec].name,singleword) ;
-      resetspecdata(&(*listspecaddr)[*Nspec]) ;
+      TCKMI_resetspecdata(&(*listspecaddr)[*Nspec]) ;
       (*Nspec) += 1 ;
     } 
 
-    elimleads(linein);
+    TCKMI_elimleads(linein);
     lenstr = strlen(linein) ;
 
     if ((*Nspec) > ((*Nspecmax)-1)) 
@@ -926,13 +955,13 @@ int getspecies(char *linein,char *singleword,species **listspecaddr,
 /**
  * \brief Reset data for a species
 */
-void resetspecdata(species *currentspec)
+void TCKMI_resetspecdata(species *currentspec)
 {
 
   int i ; 
 
 #ifdef DEBUGMSG
-  printf( "In resetspecdata : %p\n", &currentspec[0] ) ;
+  printf( "In TCKMI_resetspecdata : %p\n", &currentspec[0] ) ;
 #endif
 
   currentspec[0].hasthermo = 0   ;
@@ -960,7 +989,7 @@ void resetspecdata(species *currentspec)
  * \brief Set the mass for all entries in the list of elements 
  *   based on the values found in the periodic table
 */
-int setspecmass(element *listelem,int *Nelem,
+int TCKMI_setspecmass(element *listelem,int *Nelem,
                 species *listspec,int *Nspec, 
                 int *ierror)
 {
@@ -1003,7 +1032,7 @@ int setspecmass(element *listelem,int *Nelem,
  *   The index goes from 0 to (Nspec-1); if the species is not found
  *   the value of Nspec is returned
  */
-void checkspecinlist(char *specname,species *listspec,int *Nspec, int *ipos)
+void TCKMI_checkspecinlist(char *specname,species *listspec,int *Nspec, int *ipos)
 {
 
   int i ;
@@ -1032,7 +1061,7 @@ void checkspecinlist(char *specname,species *listspec,int *Nspec, int *ipos)
 /**
  * \brief Returns 1 if all species have thermodynamic properties set, 0 otherwise
 */
-int checkthermo(species *listspec,int *Nspec)
+int TCKMI_checkthermo(species *listspec,int *Nspec)
 {
   int i ;
   int allthermo = 1 ;
@@ -1051,7 +1080,7 @@ int checkthermo(species *listspec,int *Nspec)
  * \brief Reads thermodynamic properties (NASA polynomials) from the 
  *        mechanism input file or from a separate file
 */
-int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
+int TCKMI_getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
               element *listelem,int *Nelem,species *listspec,int *Nspec,double *Tglobal,
               int *ithermo,int *iread,int *ierror)
 {
@@ -1073,7 +1102,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
   }
 
   /* Check if all species have the thermodynamic properties set already */
-  if ( checkthermo(listspec,Nspec) == 1 ) return ( 0 ) ;
+  if ( TCKMI_checkthermo(listspec,Nspec) == 1 ) return ( 0 ) ;
 
   /* Check if the thermodynamic properies are to be read from mechanism
   input file  */
@@ -1100,7 +1129,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
   /* If reading from mechanism input see if "thermo all" */
   if ( *iread == 3 ) 
   {
-    wordtoupper(linein,singleword,3) ;
+    TCKMI_wordtoupper(linein,singleword,3) ;
     /* If ALL is encountered need to read three temp values from
     the next line */
     if (strncmp(singleword,"ALL",3) == 0)
@@ -1119,7 +1148,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
         return 1 ;
       }
       /* replace tab characters and eliminate comments and leading spaces */
-      cleancharstring(linein,&len1) ;
+      TCKMI_cleancharstring(linein,&len1) ;
       if ( len1== 0) 
       {
         *ierror = 334 ;
@@ -1129,8 +1158,8 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
       while ( i<3 )
       {
         i++;
-        extractWordRight(linein,singleword) ;
-        checkstrnum(singleword,&len1,ierror) ;
+        TCKMI_extractWordRight(linein,singleword) ;
+        TCKMI_checkstrnum(singleword,&len1,ierror) ;
         if (*ierror>0) return 1;
         if (len1 == 0)
         {
@@ -1158,7 +1187,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
         *ierror = 340 ;
         return 1 ;
       }
-      cleancharstring(linein1,&len1) ;
+      TCKMI_cleancharstring(linein1,&len1) ;
     }
 
     len1 = 0 ;
@@ -1172,13 +1201,13 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
         *ierror = 342 ;
         return 1 ;
       }
-      cleancharstring(linein1,&len1) ;
+      TCKMI_cleancharstring(linein1,&len1) ;
     }
     /* replace tab characters and eliminate comments and leading spaces */
 #ifdef DEBUGMSG 
     printf("|%s|\n",linein1) ; 
 #endif
-    cleancharstring(linein1,&len1) ;
+    TCKMI_cleancharstring(linein1,&len1) ;
     if ( len1== 0) 
     {
       *ierror = 344 ;
@@ -1190,9 +1219,9 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
     while (i<3)
     {
       i++;
-      extractWordRight(linein1,singleword) ;
+      TCKMI_extractWordRight(linein1,singleword) ;
 
-      checkstrnum(singleword,&len1,ierror) ;
+      TCKMI_checkstrnum(singleword,&len1,ierror) ;
 
       if (*ierror>0) return 1;
 
@@ -1231,7 +1260,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
     while ( (len1==0) && (feof(thermofile) == 0))
     {
       fgets(linein1,200,thermofile) ;
-      cleancharstring(linein1,&len1) ;
+      TCKMI_cleancharstring(linein1,&len1) ;
     }
 
     /* If end of file exit */
@@ -1243,7 +1272,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
 
     /* Test for keyword */
     strncpy(singleword,linein1,4) ;
-    wordtoupper(singleword,singleword,4) ;
+    TCKMI_wordtoupper(singleword,singleword,4) ;
 
     /* If "END" is encountered */
     if (strncmp(singleword,"END",3) == 0) 
@@ -1256,7 +1285,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
     if ( (strncmp(singleword,"REAC",4) == 0) && (*iread==3) )
     {
       strncpy(linein,linein1,200) ;
-      extractWordLeft(linein,singleword) ;
+      TCKMI_extractWordLeft(linein,singleword) ;
       (*iread) = 4;
       return 0;
 
@@ -1264,21 +1293,21 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
 
     if ( feof(thermofile) > 0 ) *ierror = 360 ;
     if (*ierror == 0) fgets(linein2,200,thermofile) ;
-    /* cleancharstring(linein2,&len1) ; */
+    /* TCKMI_cleancharstring(linein2,&len1) ; */
     if (feof(thermofile) > 0) *ierror = 360 ;
     if (*ierror == 0) fgets(linein3,200,thermofile) ;
-    /* cleancharstring(linein3,&len1) ; */
+    /* TCKMI_cleancharstring(linein3,&len1) ; */
     if (feof(thermofile) > 0) *ierror = 360 ;
     if (*ierror == 0) fgets(linein4,200,thermofile) ;
-    /* cleancharstring(linein4,&len1) ; */
+    /* TCKMI_cleancharstring(linein4,&len1) ; */
 
     if (*ierror > 0) return ( 1 );
 
     /* Get species name and convert it to uppercase */
     len1 = strcspn(linein1," ");
     strncpy(singleword,linein1,len1) ; singleword[len1] = 0;
-    cleancharstring(singleword,&len1) ;
-    wordtoupper(singleword,singleword,len1);
+    TCKMI_cleancharstring(singleword,&len1) ;
+    TCKMI_wordtoupper(singleword,singleword,len1);
 
     /* Check if species name is not null */
     if (len1==0) 
@@ -1288,7 +1317,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
     }
 
     /* Check if species is of interest */
-    checkspecinlist(singleword,listspec,Nspec,&ipos) ;
+    TCKMI_checkspecinlist(singleword,listspec,Nspec,&ipos) ;
 
     if ( ipos < (*Nspec) )
     {
@@ -1309,7 +1338,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
           len1  = 10;
           if (i==2) len1 = 8;
           strncpy(singleword,&linein1[itemp],len1) ; singleword[len1] = 0;
-          checkstrnum(singleword,&len1,ierror) ;
+          TCKMI_checkstrnum(singleword,&len1,ierror) ;
 
           if (*ierror>0) return 1;
 
@@ -1335,14 +1364,14 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
           /* Extract element name */
           strncpy(singleword,&linein1[itemp],2); singleword[2] = 0;
           if ( ( isdigit(singleword[0])>0 ) || (isdigit(singleword[0])>0)) break ;
-          cleancharstring(singleword,&len1) ;
+          TCKMI_cleancharstring(singleword,&len1) ;
 
           /* Break from loop if element position is blank */
           if (len1 == 0) break ;
 
           /* Determine position in the list of elements */
-          wordtoupper(singleword,singleword,len1) ;
-          checkeleminlist(singleword,listelem,Nelem,&ipos1) ;
+          TCKMI_wordtoupper(singleword,singleword,len1) ;
+          TCKMI_checkeleminlist(singleword,listelem,Nelem,&ipos1) ;
           if (ipos1 == (*Nelem))
           {
             *ierror = 380 ;
@@ -1353,7 +1382,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
 
           /* Good element, find numbers */
           strncpy(singleword,&linein1[itemp+2],3); singleword[3] = 0;
-          checkstrnum(singleword,&len1,ierror) ;
+          TCKMI_checkstrnum(singleword,&len1,ierror) ;
           if (*ierror > 0) return 1;
           itemp = (int) atof(singleword) ;
 
@@ -1399,9 +1428,9 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
           {
             itemp = j*15;
             strncpy(singleword,&currentline[itemp],15); singleword[15] = 0;
-            //len1=15; charfixespc(singleword,&len1) ; /* 20111101 */
-            cleancharstring(singleword,&len1) ;
-            checkstrnum(singleword,&len1,ierror) ;
+            //len1=15; TCKMI_charfixespc(singleword,&len1) ; /* 20111101 */
+            TCKMI_cleancharstring(singleword,&len1) ;
+            TCKMI_checkstrnum(singleword,&len1,ierror) ;
             if ( (len1==0) || (*ierror>0))
             {
               *ierror = 390 ;
@@ -1451,7 +1480,7 @@ int getthermo(char *linein,char *singleword,FILE *mechin,FILE *thermoin,
 /**
  * \brief Resets the current entry in the list of reactions
  */
-void resetreacdata(reaction *currentreac,char *aunits,char *eunits) 
+void TCKMI_resetreacdata(reaction *currentreac,char *aunits,char *eunits) 
 {
 
   int i;
@@ -1521,7 +1550,7 @@ void resetreacdata(reaction *currentreac,char *aunits,char *eunits)
  * \brief Sets units for the pre-exponential factor and for the activation
  *   energy
  */
-void checkunits(char *linein,char *singleword,char *aunits,char *eunits)
+void TCKMI_checkunits(char *linein,char *singleword,char *aunits,char *eunits)
 {
   int len1 ;
 
@@ -1530,7 +1559,7 @@ void checkunits(char *linein,char *singleword,char *aunits,char *eunits)
   memset(eunits,0,10);
   memset(singleword,0,10);
 
-  elimleads(linein) ;
+  TCKMI_elimleads(linein) ;
 
   len1 = strlen(linein) ;
 
@@ -1538,7 +1567,7 @@ void checkunits(char *linein,char *singleword,char *aunits,char *eunits)
   {
 
     strncpy(singleword,linein,5) ;
-    wordtoupper(singleword,singleword,5) ;
+    TCKMI_wordtoupper(singleword,singleword,5) ;
 
     if (strlen(eunits)==0)
     {
@@ -1569,7 +1598,7 @@ void checkunits(char *linein,char *singleword,char *aunits,char *eunits)
 
     }
 
-    extractWordLeftNoslash(linein,singleword) ;
+    TCKMI_extractWordLeftNoslash(linein,singleword) ;
     len1 = strlen(linein);
 
   }
@@ -1593,7 +1622,7 @@ void checkunits(char *linein,char *singleword,char *aunits,char *eunits)
  * \brief Interprets a character string containing reaction description 
  *   (equation + forward Arrhenius parameters)
  */
-int getreacline(char *linein,char *singleword,
+int TCKMI_getreacline(char *linein,char *singleword,
                 species *listspec,int *Nspec,
                 reaction *listreac,int *Nreac,
                 int *ierror)
@@ -1619,8 +1648,8 @@ int getreacline(char *linein,char *singleword,
   /* Extract forward Arrhenius coefficients */
   for ( i=0; i<3; i++ )
   {
-    extractWordRight(linein,singleword)  ;
-    checkstrnum(singleword,&len1,ierror) ;
+    TCKMI_extractWordRight(linein,singleword)  ;
+    TCKMI_checkstrnum(singleword,&len1,ierror) ;
 
 #ifdef DEBUGMSG
     printf("%d |%s|\n",i,singleword) ; 
@@ -1635,7 +1664,7 @@ int getreacline(char *linein,char *singleword,
   }
 
   /* Eliminate spaces from the rest of the string */
-  elimspaces(linein) ;
+  TCKMI_elimspaces(linein) ;
 
   /* Check for delimiters between reactants and products */
   len1 = strlen(linein) ;
@@ -1757,7 +1786,7 @@ int getreacline(char *linein,char *singleword,
           {
             memset(specname,0,LENGTHOFSPECNAME);
             strncpy(specname,&reacprod[ipos+2],ipos1-ipos-2);
-            checkspecinlist(specname,listspec,Nspec,&ipos2) ;
+            TCKMI_checkspecinlist(specname,listspec,Nspec,&ipos2) ;
 
             /* Check if species exist */
             if (ipos2==(*Nspec))
@@ -1981,7 +2010,7 @@ int getreacline(char *linein,char *singleword,
           double rstcoeff = 1.0 ;
           /* Check for numbers */
           len1 = strlen(specname) ;
-          findnonnum(specname,&ipos) ; 
+          TCKMI_findnonnum(specname,&ipos) ; 
 
           /* identify stoichiometric coefficients */
           if (ipos>0) 
@@ -2035,7 +2064,7 @@ int getreacline(char *linein,char *singleword,
             strncpy(specname,sntmp,len1-ipos);
 	  }
           memset(&specname[len1-ipos],0,ipos);
-          checkspecinlist(specname,listspec,Nspec,&ipos) ;
+          TCKMI_checkspecinlist(specname,listspec,Nspec,&ipos) ;
 
           if (ipos == *Nspec)
           {
@@ -2139,7 +2168,7 @@ int getreacline(char *linein,char *singleword,
  * \brief Interprets a character string containing reaction description 
  *   (auxiliary information)
  */
-int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
+int TCKMI_getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
                 reaction *listreac,int *Nreac, int *ierror)
 {
   int len1 ;
@@ -2159,7 +2188,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
   {
     memset(wordkey,0,ilenkey) ;
     memset(wordval,0,ilenval) ;
-    extractWordLeftauxline(linein,wordkey,wordval,&inum,ierror) ;
+    TCKMI_extractWordLeftauxline(linein,wordkey,wordval,&inum,ierror) ;
 
     if (*ierror>0) return 1;
 
@@ -2222,7 +2251,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 716 ;
@@ -2247,7 +2276,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 781 ;
@@ -2272,7 +2301,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 721 ;
@@ -2297,7 +2326,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 726 ;
@@ -2327,7 +2356,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 731 ;
@@ -2352,7 +2381,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 736 ;
@@ -2377,7 +2406,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 741 ;
@@ -2402,7 +2431,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1 ;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 746 ;
@@ -2426,10 +2455,10 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1 ;
       }
 
-      elimleads(wordval) ;
-      elimends (wordval) ;
+      TCKMI_elimleads(wordval) ;
+      TCKMI_elimends (wordval) ;
 
-      checkspecinlist(wordval,listspec,Nspec,&ipos) ;
+      TCKMI_checkspecinlist(wordval,listspec,Nspec,&ipos) ;
       if (ipos == *Nspec)
       {
         *ierror = 771 ;
@@ -2449,7 +2478,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1 ;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 776 ;
@@ -2478,7 +2507,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1 ;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 787 ;
@@ -2508,7 +2537,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1 ;
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 792 ;
@@ -2528,8 +2557,8 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
     else if (strncmp(wordkey,"UNITS",5) == 0)
     {
       int spacefind; 
-      elimleads(wordval) ;
-      elimends (wordval) ;
+      TCKMI_elimleads(wordval) ;
+      TCKMI_elimends (wordval) ;
       len1 = strlen(wordval) ;
       if (len1 == 0) 
       {
@@ -2546,7 +2575,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         wordkey[spacefind] = 0 ;
         memmove(wordval,&wordval[spacefind],len1-spacefind) ;
         memset(&wordval[len1-spacefind],0,spacefind) ;
-        elimleads(wordval) ; len1 = strlen(wordval) ;
+        TCKMI_elimleads(wordval) ; len1 = strlen(wordval) ;
 
       }
       else
@@ -2633,8 +2662,8 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
       } /* Done setting-up the arbitrary order */
 
       /* Extract species name */
-      elimleads(wordval) ;
-      elimends (wordval) ;
+      TCKMI_elimleads(wordval) ;
+      TCKMI_elimends (wordval) ;
       len1 = strlen(wordval) ;
       if (len1 == 0) 
       {
@@ -2650,7 +2679,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         wordkey[spacefind] = 0 ;
         memmove(wordval,&wordval[spacefind],len1-spacefind) ;
         memset(&wordval[len1-spacefind],0,spacefind) ;
-        elimleads(wordval) ; len1 = strlen(wordval) ;
+        TCKMI_elimleads(wordval) ; len1 = strlen(wordval) ;
       }
       else
       {
@@ -2658,8 +2687,8 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
         return 1;
       }
 
-      checkspecinlist(wordkey,listspec,Nspec,&ipos) ;
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_checkspecinlist(wordkey,listspec,Nspec,&ipos) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (ipos == *Nspec)
       {
         *ierror = 922 ;
@@ -2737,7 +2766,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
     else
     {
       /* Possible found third-body */
-      checkspecinlist(wordkey,listspec,Nspec,&ipos) ;
+      TCKMI_checkspecinlist(wordkey,listspec,Nspec,&ipos) ;
 
       if (ipos == *Nspec)
       {
@@ -2761,7 +2790,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
 
       }
 
-      extractdouble(wordval,dvalues,&inum,ierror) ;
+      TCKMI_extractdouble(wordval,dvalues,&inum,ierror) ;
       if (*ierror >0)
       {
         *ierror = 753 ;
@@ -2795,7 +2824,7 @@ int getreacauxl(char *linein,char *singleword, species *listspec,int *Nspec,
  *    - decides if the character string describes a reaction or the 
  *      auxiliary information associated with one
  */
-int getreactions(char *linein,char *singleword, species *listspec,int *Nspec,
+int TCKMI_getreactions(char *linein,char *singleword, species *listspec,int *Nspec,
                  reaction *listreac,int *Nreac, char *aunits,char *eunits,
                  int *ierror)
 {
@@ -2841,15 +2870,15 @@ int getreactions(char *linein,char *singleword, species *listspec,int *Nspec,
   if (iloc > -1)
   {
     /* Character string contains auxiliary info */
-    getreacauxl(linein,singleword,listspec,Nspec,listreac,Nreac,ierror);      
+    TCKMI_getreacauxl(linein,singleword,listspec,Nspec,listreac,Nreac,ierror);      
   }
   else
   {
           /* Character string contains reaction description */
           /* First, reset the info for the current reaction */
-          resetreacdata(&listreac[*Nreac],aunits,eunits) ;
+          TCKMI_resetreacdata(&listreac[*Nreac],aunits,eunits) ;
           /* Next, interpret the string, and increment the current reaction line */
-          getreacline(linein,singleword,listspec,Nspec,listreac,Nreac,ierror) ;
+          TCKMI_getreacline(linein,singleword,listspec,Nspec,listreac,Nreac,ierror) ;
 
           (*Nreac)++ ;
 
@@ -2864,7 +2893,7 @@ int getreactions(char *linein,char *singleword, species *listspec,int *Nspec,
  * \brief Verifies corectness and completness for all reactions in the list
  */
 
-int verifyreac(element *listelem,int *Nelem,
+int TCKMI_verifyreac(element *listelem,int *Nelem,
                species *listspec,int *Nspec,
                reaction *listreac,int *Nreac,int *ierror)
 {
@@ -3284,7 +3313,7 @@ int verifyreac(element *listelem,int *Nelem,
  * \brief Verifies corectness and completness for all reactions in the list
  */
 
-int rescalereac(reaction *listreac,int *Nreac)
+int TCKMI_rescalereac(reaction *listreac,int *Nreac)
 {
 
   int i,j ;
@@ -3412,7 +3441,7 @@ int rescalereac(reaction *listreac,int *Nreac)
 
   return 0 ;
 
-} /* Done with "rescalereac" */
+} /* Done with "TCKMI_rescalereac" */
 
 /*
                  ___    _____  
@@ -3426,7 +3455,7 @@ int rescalereac(reaction *listreac,int *Nreac)
 /**
  * \brief Outputs reaction data to ascii file
  */
-int out_formatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_outform(element *listelem,int *Nelem, species *listspec,int *Nspec,
                    reaction *listreac,int *Nreac, char *aunits,char *eunits,
                    FILE *fileascii) 
 {
@@ -3803,13 +3832,13 @@ int out_formatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
 
   return ( 0 );
 
-} /* Done with "out_formatted" */
+} /* Done with "TCKMI_outform" */
 
 /* -------------------------------------------------------------------------  */
 /**
  * \brief Outputs reaction data to an unformatted ascii file
  */
-int out_unformatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_outunform(element *listelem,int *Nelem, species *listspec,int *Nspec,
                 reaction *listreac,int *Nreac, char *aunits,char *eunits,
                 FILE *filelist, int *ierror) 
 {
@@ -3819,7 +3848,7 @@ int out_unformatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
   int nIonEspec,electrIndx,nIonSpec,maxSpecInReac,maxTbInReac,maxOrdPar,nFallPar,maxTpRange ;
   int nLtReac,nRltReac,nFallReac,nThbReac,nRevReac,nHvReac,nTdepReac,nJanReac,nFit1Reac,nExciReac ;
   int nMomeReac,nXsmiReac,nRealNuReac,nOrdReac,nNASAinter,nCpCoef,nNASAfit,nArhPar ;
-  int nLtPar,nJanPar,nFit1Par ;
+  int nLtPar,nJanPar,nFit1Par, nNASA9coef ;
 
   if (*ierror == 0) 
     fprintf(filelist,"SUCCESS\n") ;
@@ -3830,12 +3859,14 @@ int out_unformatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
   }
 
   /* compute kinetic model summary */
-  kmodsum(listelem,Nelem,listspec,Nspec,listreac,Nreac,
-    &nIonEspec,&electrIndx,&nIonSpec,&maxSpecInReac,&maxTbInReac,&maxOrdPar,&nFallPar,&maxTpRange,
-    &nLtReac,&nRltReac,&nFallReac,&nThbReac,&nRevReac,&nHvReac,&nTdepReac,&nJanReac,&nFit1Reac,
-    &nExciReac,&nMomeReac,&nXsmiReac,&nRealNuReac,&nOrdReac,
-    &nNASAinter,&nCpCoef,&nNASAfit,&nArhPar,
-    &nLtPar,&nJanPar,&nFit1Par) ;
+  TCKMI_kmodsum(listelem, Nelem, listspec, Nspec, listreac, Nreac,
+          &nIonEspec, &electrIndx, &nIonSpec, &maxSpecInReac,
+          &maxTbInReac, &maxOrdPar, &nFallPar, &maxTpRange,
+          &nLtReac, &nRltReac, &nFallReac, &nThbReac, &nRevReac,
+          &nHvReac, &nTdepReac, &nJanReac, &nFit1Reac,
+          &nExciReac, &nMomeReac, &nXsmiReac, &nRealNuReac, &nOrdReac,
+          &nNASAinter, &nCpCoef, &nNASAfit, &nArhPar,
+	  &nLtPar, &nJanPar, &nFit1Par, &nNASA9coef) ;
 
 
   fprintf(filelist,"%12d\n",maxSpecInReac ) ; /* Maximum number of species in a reaction */
@@ -3869,6 +3900,7 @@ int out_unformatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
   fprintf(filelist,"%12d\n",nOrdReac   ) ; /* Number of reactions with arbitrary order */
   fprintf(filelist,"%12d\n",electrIndx ) ; /* Index of the electron species */ 
   fprintf(filelist,"%12d\n",nIonEspec  ) ; /* Number of ion species excluding the electron species */ 
+  fprintf(filelist,"%12d\n",nNASA9coef ) ; /* Number of species with 9-coefficients polynomial fits */
 
   /* Tolerance for reaction balance */
   fprintf(filelist,"%24.16e\n",REACBALANCE) ;
@@ -3926,6 +3958,29 @@ int out_unformatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
     for (j=0;j<nNASAinter;j++)
       for (k=0;k<nNASAfit;k++)
         fprintf(filelist,"%24.16e\n",listspec[i].nasapolcoefs[j*nNASAfit+k]) ;
+
+  /* Polynomial coeffs for 9-term thermo fits */
+  if ( nNASA9coef > 0 ) 
+  {
+    fprintf(filelist,"%12d\n",nNASA9coef) ;
+    for (i=0;i<(*Nspec);i++)
+    {
+      if ( listspec[i].hasthermo == 2 )
+      {
+        fprintf(filelist,"%12d\n",i+1) ;
+        fprintf(filelist,"%12d\n", listspec[i].Nth9rng) ;
+        for ( j = 0; j<listspec[i].Nth9rng; j++ )
+	{
+
+	  fprintf(filelist,"%24.16e\n%24.16e\n",listspec[i].Nth9Temp[2*j  ],
+                                                listspec[i].Nth9Temp[2*j+1]) ; 
+          for ( k = 0; k < 9; k++ )
+	    fprintf(filelist,"%24.16e\n",listspec[i].Nth9coefs[j*9+k]);
+
+	} /* done loop over temperature ranges */
+      } /* done if species has 9-coefficients thermo props */
+    } /* done loop over all species */
+  } /* done if for species with 9-coefficients thermo props */
 
   /* Ionic species */
   if (nIonEspec > 0) 
@@ -4436,13 +4491,13 @@ int out_unformatted(element *listelem,int *Nelem, species *listspec,int *Nspec,
 
   return ( 0 ) ;
 
-} /* Done with "out_unformatted" */
+} /* Done with "TCKMI_outunform" */
 
 /* ------------------------------------------------------------------------- */
 /**
  * \brief Outputs error messages
  */
-void errormsg(int ierror)
+void TCKMI_errormsg(int ierror)
 {
   if (ierror == 10) 
   {
@@ -4721,7 +4776,7 @@ void errormsg(int ierror)
  * Then shifts the string left over the leading spaces, and marks the
  * remaining space at the right with null characters
 */
-int elimleads(char *linein) 
+int TCKMI_elimleads(char *linein) 
 {
   int exclfind;
   int len1 = strlen(linein) ;
@@ -4744,7 +4799,7 @@ int elimleads(char *linein)
  * \brief Checks if a string of characters contains trailing spaces  
  *   Marks all those positions with null characters
  */
-int elimends(char *linein) 
+int TCKMI_elimends(char *linein) 
 {
   int i ;
   int len1 = strlen(linein) ;
@@ -4765,7 +4820,7 @@ int elimends(char *linein)
 /**
  * \brief Eliminates space characters from a string
  */
-int elimspaces(char *linein) 
+int TCKMI_elimspaces(char *linein) 
 {
   int exclfind;
   int len1 = strlen(linein) ;
@@ -4795,7 +4850,7 @@ int elimspaces(char *linein)
  *   downstream (including the "!")
  *
 */
-int elimcomm(char *linein) 
+int TCKMI_elimcomm(char *linein) 
 {
   char *comment = 0 ;
   int len1 = strlen(linein) ;
@@ -4806,7 +4861,7 @@ int elimcomm(char *linein)
 
   if (comment != 0) memset(comment,0,strlen(comment)) ;
 
-  if (strlen(linein)>0) elimends(linein) ;
+  if (strlen(linein)>0) TCKMI_elimends(linein) ;
 
   return (0) ;
 }
@@ -4821,7 +4876,7 @@ int elimcomm(char *linein)
  *       - ASCII code for line feed (new line) is 10
  *       - ASCII code for carriage return is      15
  */ 
-int tab2space(char *linein) 
+int TCKMI_tab2space(char *linein) 
 {
   int i;
   int len1 = strlen(linein) ;
@@ -4849,7 +4904,7 @@ int tab2space(char *linein)
  *       sepatation character
  *     - the corrensponding positions left at the right are filled with null characters
 */
-int extractWordLeft(char *linein,char *oneword) 
+int TCKMI_extractWordLeft(char *linein,char *oneword) 
 {
 
   int spacefind = 0 ;
@@ -4858,7 +4913,7 @@ int extractWordLeft(char *linein,char *oneword)
   if ( len1 == 0 ) return 0 ;
 
   /* Eliminate leading spaces if any */
-  elimleads(linein) ; len1 = strlen(linein) ;
+  TCKMI_elimleads(linein) ; len1 = strlen(linein) ;
 
   /* Return if remaining string is null */
   if ( len1 == 0 ) return 0 ;
@@ -4894,7 +4949,7 @@ int extractWordLeft(char *linein,char *oneword)
 
   }
 
-  elimleads(linein) ;
+  TCKMI_elimleads(linein) ;
 
   return 0;
 }
@@ -4908,14 +4963,14 @@ int extractWordLeft(char *linein,char *oneword)
  *       first character after the second "/"
  *     - the corrensponding positions left at the right are filled with null characters
 */
-int extractWordLeftauxline(char *linein,char *oneword,char *twoword,int *inum,int *ierror) 
+int TCKMI_extractWordLeftauxline(char *linein,char *oneword,char *twoword,int *inum,int *ierror) 
 {
 
   int len1,ipos;
   int spacefind = 0 ;
 
   /* Eliminate leading spaces if any, then if string is null return */
-  elimleads(linein) ; len1 = strlen(linein) ;
+  TCKMI_elimleads(linein) ; len1 = strlen(linein) ;
   if ( len1 == 0 )
   {
     *inum = 0;
@@ -4961,7 +5016,7 @@ int extractWordLeftauxline(char *linein,char *oneword,char *twoword,int *inum,in
 
   }
 
-  elimleads(linein) ; len1 = strlen(linein) ;
+  TCKMI_elimleads(linein) ; len1 = strlen(linein) ;
 
   if (len1 == 0)
   {
@@ -4994,7 +5049,7 @@ int extractWordLeftauxline(char *linein,char *oneword,char *twoword,int *inum,in
   strncpy(twoword,&linein[1],ipos-1) ; 
   memmove(linein,&linein[ipos+1],len1-ipos-1) ;
   memset(&linein[len1-ipos-1],0,ipos+1) ;
-  elimleads(linein) ;
+  TCKMI_elimleads(linein) ;
   *inum = 2 ;
   return 0;
 
@@ -5002,10 +5057,10 @@ int extractWordLeftauxline(char *linein,char *oneword,char *twoword,int *inum,in
 
 /* ------------------------------------------------------------------------- */
 /**
- * \brief The only difference between this method and "extractWordLeft"
+ * \brief The only difference between this method and "TCKMI_extractWordLeft"
  *   is the absence of "/" as delimiter
  */
-int extractWordLeftNoslash(char *linein,char *oneword) 
+int TCKMI_extractWordLeftNoslash(char *linein,char *oneword) 
 {
 
   int spacefind = 0 ;
@@ -5014,7 +5069,7 @@ int extractWordLeftNoslash(char *linein,char *oneword)
   if ( len1 == 0 ) return 0 ;
 
   /* Eliminate leading spaces if any */
-  elimleads(linein) ; len1 = strlen(linein) ;
+  TCKMI_elimleads(linein) ; len1 = strlen(linein) ;
 
   /* Return if remaining string is null */
   if ( len1 == 0 ) return 0 ;
@@ -5049,7 +5104,7 @@ int extractWordLeftNoslash(char *linein,char *oneword)
 
   }
 
-  elimleads(linein) ;
+  TCKMI_elimleads(linein) ;
 
   return 0;
 }
@@ -5060,7 +5115,7 @@ int extractWordLeftNoslash(char *linein,char *oneword)
  * (1) assumes the word is separated from the rest of the string by at least a space;
  * (2) the corrensponding positions in the initial string are filled with null characters
  */
-int extractWordRight(char *linein,char *oneword) 
+int TCKMI_extractWordRight(char *linein,char *oneword) 
 {
 
   int spacefind ;
@@ -5068,8 +5123,8 @@ int extractWordRight(char *linein,char *oneword)
   if ( len1 == 0 ) return 0 ;
 
   /* Eliminate leading and ending spaces if any */
-  elimleads(linein) ; 
-  elimends (linein) ; 
+  TCKMI_elimleads(linein) ; 
+  TCKMI_elimends (linein) ; 
 
   /* Return if remaining string is null */
   len1 = strlen(linein) ;
@@ -5083,7 +5138,7 @@ int extractWordRight(char *linein,char *oneword)
   /* Copy last word */
   strncpy(oneword,&linein[spacefind],len1-spacefind) ;
   oneword[len1-spacefind] = 0 ;
-  elimleads(oneword) ;
+  TCKMI_elimleads(oneword) ;
 
   /* Zero last word in the original string */
   memset(&linein[spacefind],0,len1-spacefind) ;
@@ -5098,7 +5153,7 @@ int extractWordRight(char *linein,char *oneword)
  *   (1) the number is assumed to be the left most word in the string;
  *   (2) words are separated by spaces
  */
-int extractdouble(char *wordval,double *dvalues,int *inum,int *ierror) 
+int TCKMI_extractdouble(char *wordval,double *dvalues,int *inum,int *ierror) 
 {
   int len1 ;
   char numstr[20] ;
@@ -5112,8 +5167,8 @@ int extractdouble(char *wordval,double *dvalues,int *inum,int *ierror)
   while (len1>0)
   {
     memset(numstr,0,20) ;
-    extractWordLeftNoslash(wordval,numstr)  ;
-    checkstrnum(numstr,&len1,ierror) ;
+    TCKMI_extractWordLeftNoslash(wordval,numstr)  ;
+    TCKMI_checkstrnum(numstr,&len1,ierror) ;
 
     if (*ierror > 0) return 1;
 
@@ -5132,7 +5187,7 @@ int extractdouble(char *wordval,double *dvalues,int *inum,int *ierror)
 /**
  * \brief Converts all letters in a character string to uppercase
  */
-void wordtoupper(char *linein,char *oneword,int Npos)
+void TCKMI_wordtoupper(char *linein,char *oneword,int Npos)
 {
   int i ;
   for (i=0;i<Npos;i++)
@@ -5149,17 +5204,17 @@ void wordtoupper(char *linein,char *oneword,int Npos)
  * \brief Performs various operations on a character strings (see explanations
  * for individual methods)
  */
-void cleancharstring(char *linein,int *len1)
+void TCKMI_cleancharstring(char *linein,int *len1)
 {
   (*len1) = strlen(linein) ;
 
   if ( (*len1) > 0 ) 
   {
 
-    tab2space(linein) ;
-    elimcomm (linein) ;
-    elimleads(linein) ;
-    elimends (linein) ;
+    TCKMI_tab2space(linein) ;
+    TCKMI_elimcomm (linein) ;
+    TCKMI_elimleads(linein) ;
+    TCKMI_elimends (linein) ;
 
     (*len1) = strlen(linein) ;
 
@@ -5169,7 +5224,7 @@ void cleancharstring(char *linein,int *len1)
 
 }
 
-int charfixespc(char *singleword,int *len1)
+int TCKMI_charfixespc(char *singleword,int *len1)
 {
 
   int i ;
@@ -5196,7 +5251,7 @@ int charfixespc(char *singleword,int *len1)
  *  \brief Checks if all components of a charcater string are valid number characters
  *  (as described by the %f or %e formats)
  */
-int checkstrnum(char *singleword,int *len1,int *ierror)
+int TCKMI_checkstrnum(char *singleword,int *len1,int *ierror)
 {
   int i,j,isgood ;
   int nchar=15;
@@ -5209,7 +5264,7 @@ int checkstrnum(char *singleword,int *len1,int *ierror)
   if (*ierror>0) return 1;
 
   /* Clean character string */
-  cleancharstring(singleword,len1) ;
+  TCKMI_cleancharstring(singleword,len1) ;
 
   /* Check if there are spaces in the number string */
   if ( ( schk = strstr (singleword," ") ) != NULL )
@@ -5295,7 +5350,7 @@ int checkstrnum(char *singleword,int *len1,int *ierror)
  *   (in other words, finds the first position that is not a digit or
  *   a decimal point)
  */
-int findnonnum(char *specname,int *ipos)
+int TCKMI_findnonnum(char *specname,int *ipos)
 {
   int len1 = strlen(specname) ;
   int icheck = 0 ;
@@ -5319,14 +5374,14 @@ int findnonnum(char *specname,int *ipos)
 /**
  *  \brief kinetic model summary
  */
-int kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
             reaction *listreac,int *Nreac,
             int *nIonEspec,int *electrIndx,int *nIonSpec,int *maxSpecInReac,int *maxTbInReac,int *maxOrdPar,
             int *nFallPar,int *maxTpRange,int *nLtReac,int *nRltReac,int *nFallReac,
             int *nThbReac,int *nRevReac,int *nHvReac,int *nTdepReac,int *nJanReac,int *nFit1Reac,
             int *nExciReac,int *nMomeReac,int *nXsmiReac,int *nRealNuReac,int *nOrdReac,
             int *nNASAinter,int *nCpCoef,int *nNASAfit,int *nArhPar,
-            int *nLtPar,int *nJanPar,int *nFit1Par)
+            int *nLtPar,int *nJanPar,int *nFit1Par, int *nNASA9coef)
 {
 
   /* adding +1 to all indices to account for differences between C and Fortran */
@@ -5335,6 +5390,7 @@ int kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
   /*---------------------Species counters---------------------------- */
   (*nIonEspec)  = 0;
   (*electrIndx) = 0;
+  (*nNASA9coef) = 0;
   for (i=0;i<(*Nspec);i++)
   {
     /* Counting number of ion species and store position of the electron species */
@@ -5345,6 +5401,7 @@ int kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
       else
         (*nIonEspec) += 1;
     }
+    if ( listspec[i].hasthermo == 2) (*nNASA9coef) += 1;
   }
   (*nIonSpec) = (*nIonEspec) ;
   if ((*electrIndx) != 0) (*nIonSpec) += 1;
@@ -5430,7 +5487,7 @@ int kmodsum(element *listelem,int *Nelem, species *listspec,int *Nspec,
 /**
  * \brief Outputs reaction data to ascii file
  */
-int out_mathem(element *listelem,int *Nelem, species *listspec,int *Nspec,
+int TCKMI_outmath(element *listelem,int *Nelem, species *listspec,int *Nspec,
                    reaction *listreac,int *Nreac, char *aunits,char *eunits) 
 {
   int i,j,k,ipos ;
@@ -5440,15 +5497,17 @@ int out_mathem(element *listelem,int *Nelem, species *listspec,int *Nspec,
   int nIonEspec,electrIndx,nIonSpec,maxSpecInReac,maxTbInReac,maxOrdPar,nFallPar,maxTpRange ;
   int nLtReac,nRltReac,nFallReac,nThbReac,nRevReac,nHvReac,nTdepReac,nJanReac,nFit1Reac,nExciReac ;
   int nMomeReac,nXsmiReac,nRealNuReac,nOrdReac,nNASAinter,nCpCoef,nNASAfit,nArhPar ;
-  int nLtPar,nJanPar,nFit1Par ;
+  int nLtPar,nJanPar,nFit1Par, nNASA9coef ;
 
   /* compute kinetic model summary */
-  kmodsum(listelem,Nelem,listspec,Nspec,listreac,Nreac,
-    &nIonEspec,&electrIndx,&nIonSpec,&maxSpecInReac,&maxTbInReac,&maxOrdPar,&nFallPar,&maxTpRange,
-    &nLtReac,&nRltReac,&nFallReac,&nThbReac,&nRevReac,&nHvReac,&nTdepReac,&nJanReac,&nFit1Reac,
-    &nExciReac,&nMomeReac,&nXsmiReac,&nRealNuReac,&nOrdReac,
-    &nNASAinter,&nCpCoef,&nNASAfit,&nArhPar,
-    &nLtPar,&nJanPar,&nFit1Par) ;
+  TCKMI_kmodsum(listelem, Nelem, listspec, Nspec, listreac, Nreac,
+          &nIonEspec, &electrIndx, &nIonSpec, &maxSpecInReac,
+          &maxTbInReac, &maxOrdPar, &nFallPar, &maxTpRange,
+          &nLtReac, &nRltReac, &nFallReac, &nThbReac, &nRevReac, 
+          &nHvReac, &nTdepReac, &nJanReac, &nFit1Reac,
+          &nExciReac, &nMomeReac, &nXsmiReac, &nRealNuReac, &nOrdReac,
+          &nNASAinter, &nCpCoef, &nNASAfit, &nArhPar,
+          &nLtPar, &nJanPar, &nFit1Par, &nNASA9coef) ;
 
   /* Output elements */
   sprintf(fname,"math_elem.dat") ;
@@ -5457,7 +5516,7 @@ int out_mathem(element *listelem,int *Nelem, species *listspec,int *Nspec,
       fprintf(fout,"%3s %24.15e\n",listelem[i].name,listelem[i].mass) ;
   else
   {
-    printf("out_mathem() : ERROR : could not open %s -> Abort\n",fname) ;
+    printf("TCKMI_outmath() : ERROR : could not open %s -> Abort\n",fname) ;
     fflush(stdout) ;
     exit(1) ;
   }
@@ -5487,7 +5546,7 @@ int out_mathem(element *listelem,int *Nelem, species *listspec,int *Nspec,
   }
   else
   {
-    printf("out_mathem() : ERROR : could not open %s -> Abort\n",fname) ;
+    printf("TCKMI_outmath() : ERROR : could not open %s -> Abort\n",fname) ;
     fflush(stdout) ;
     exit(1) ;
   }
@@ -5514,7 +5573,7 @@ int out_mathem(element *listelem,int *Nelem, species *listspec,int *Nspec,
   }
   else
   {
-    printf("out_mathem() : ERROR : could not open %s -> Abort\n",fname) ;
+    printf("TCKMI_outmath() : ERROR : could not open %s -> Abort\n",fname) ;
     fflush(stdout) ;
     exit(1) ;
   }
@@ -5803,4 +5862,4 @@ int out_mathem(element *listelem,int *Nelem, species *listspec,int *Nspec,
 
   return ( 0 );
 
-} /* Done with "out_mathem" */
+} /* Done with "TCKMI_outmath" */

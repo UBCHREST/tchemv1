@@ -358,7 +358,6 @@ c
             stop
         end select
 
-      write(*,*) keyname
       if ( keyname.ne.'END') goto 100
 
       nspecin = ispec 

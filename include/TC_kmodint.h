@@ -1,7 +1,7 @@
 #ifndef TCkmodintHSeen
 #define TCkmodintHSeen
 
-#include "copyright.h"
+#include "TC_copyright.h"
 #include "TC_params.h"
 
 /* Length of filenames */

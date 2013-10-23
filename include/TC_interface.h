@@ -4,7 +4,7 @@
 #ifndef _TCinterfHSeen_
 #define _TCinterfHSeen_
 
-#include "copyright.h"
+#include "TC_copyright.h"
 
 /* This is a C library, not C++ */
 #ifdef __cplusplus

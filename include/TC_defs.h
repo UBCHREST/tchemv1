@@ -5,7 +5,7 @@
  * \file TC_defs.h
  * \brief Definitions of variables names used by the library.
 */ 
-#include "copyright.h"
+#include "TC_copyright.h"
 #include <stdio.h>
 #include "TC_params.h"
 

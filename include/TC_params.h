@@ -5,7 +5,7 @@
  * \file TC_params.h
  * \brief Definitions of parameters and constants
 */ 
-#include "copyright.h"
+#include "TC_copyright.h"
 
 /* -------------------------------------------------------------------------
                            Macros

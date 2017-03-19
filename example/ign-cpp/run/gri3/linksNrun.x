@@ -32,7 +32,7 @@ else
 echo "Download thermo30.dat from:" 
 echo "   http://www.me.berkeley.edu/gri_mech/version30/files30/thermo30.dat"
 echo "then rename it to:"
-echo "   $DATDIR/therm_gri3.inp"
+echo "   $DATDIR/therm_gri3.dat"
 exit
 fi
 

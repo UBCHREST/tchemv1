@@ -38,9 +38,10 @@ OS_NAME = @os_name@
 #--------------------------------------------------------------------
 
 #-things that can be changed for global effect
-CFLAGS   = -O2 
-CPPFLAGS = -O2
-FFLAGS   = -O2
+CFLAGS   = @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+CXXFLAGS = @CXXFLAGS@
+FFLAGS   = @FFLAGS@
 
 # -ansi -pedantic -Wall 
 

@@ -7,6 +7,9 @@ all: library $(EXAMPLEDIR) $(DOCDIR)
 library:
 	cd src; make
 
+tchemlib:
+	cd src; make tchemlib
+
 ex: 
 	cd example; make; cd ..
 

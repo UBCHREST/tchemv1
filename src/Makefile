@@ -29,6 +29,7 @@ TCHEMU_LIB = $(LIBDIR)/libtchemutil.a
 all: $(TCHEMLIB) $(TCHEMU_LIB)
 lib: $(TCHEMLIB) $(TCHEMU_LIB)
 obj: $(TCHEMOBJ) $(TCHEMU_OBJ)
+tchemlib: $(TCHEMLIB)
 
 $(TCHEMLIB): $(TCHEMOBJ)
 	if [ ! -d "$(LIBDIR)" ]; then\

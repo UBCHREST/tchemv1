@@ -5,7 +5,7 @@ include MakeIncl.Vars
 all: library $(EXAMPLEDIR) $(DOCDIR)
 
 library:
-	cd src; make; cd ..
+	cd src; make
 
 ex: 
 	cd example; make; cd ..

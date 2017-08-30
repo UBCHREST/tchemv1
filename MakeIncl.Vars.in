@@ -12,6 +12,7 @@
 #-things set by configure
 CC       = @cc_compiler@
 CPP      = @cpp_compiler@
+CXX      = @cpp_compiler@
 F77      = @fort_compiler@
 
 # CVODE & DVODE for examples

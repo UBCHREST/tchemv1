@@ -54,5 +54,5 @@ $(SRCS)/TC_main.o: $(SRCS)/TC_main.c $(TCHEMSUB) $(TCHEMINC)
 $(SRCS)/TC_kmodint.o: $(SRCS)/TC_kmodint.c $(TCHEMINC)
 	$(CC) -I$(INCLUDES) $(CFLAGS) $(DFLAGS) -o $*.o -c $(SRCS)/TC_kmodint.c
 
-$(SRCS)/TC_reduce.o: $(SRCS)/TC_reduce.cpp $(TCHEMINC)
-	$(CXX) -I$(INCLUDES) $(CXXFLAGS) $(DFLAGS) -o $*.o -c $(SRCS)/TC_reduce.cpp
+# $(SRCS)/TC_reduce.o: $(SRCS)/TC_reduce.cpp $(TCHEMINC)
+# 	$(CXX) -I$(INCLUDES) $(CXXFLAGS) $(DFLAGS) -o $*.o -c $(SRCS)/TC_reduce.cpp

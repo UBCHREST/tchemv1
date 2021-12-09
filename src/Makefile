@@ -22,8 +22,8 @@ TCHEMSUB = $(SRCS)/TC_chg.c    \
 TCHEMINC = $(INCLUDES)/TC_defs.h $(INCLUDES)/TC_interface.h \
            $(INCLUDES)/TC_params.h $(INCLUDES)/TC_kmodint.h
 
-TCHEMU_SRC = $(SRCS)/TC_reduce.cpp
-TCHEMU_OBJ = $(SRCS)/TC_reduce.o
+# TCHEMU_SRC = $(SRCS)/TC_reduce.cpp
+# TCHEMU_OBJ = $(SRCS)/TC_reduce.o
 TCHEMU_LIB = $(LIBDIR)/libtchemutil.a
 
 all: $(TCHEMLIB) $(TCHEMU_LIB)
